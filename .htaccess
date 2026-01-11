@@ -1,0 +1,21 @@
+# <!-- e uma camada de segurança que so vai deixar ser executada se o modo mod_reweite tiver ativo -->
+<ifmodule mod_rewrite.c>
+    # <!-- Liga o motor de reescrita -->
+    RewriteEngine ON
+
+    # <!-- sé não for um arquivo e não uma pasta. 
+     * RewriteCond -> serve como filtros -->
+    RewriteCond %{REQUEST_FILENAME} !-f
+    # <!-- verifica se o que o usuário digitou na  url não é um arquivo real como uma imagem ou um arquivo .css existente no servidor-->
+    RewriteCond %{REQUEST_FILENAME} !-d
+    # <!-- verifica se o que o usuário digitou na  url não é uma pasta (diretorio) real existente no servidor-->
+
+    # <!-- redireciona para o index.php mantendo os parâmetros originais (QSA) -->
+    
+    # [L] (Last): Diz ao Apache para parar de processar outras regras se esta for aplicada.
+    # [QSA] (Query String Append): Garante que, se a URL original tiver parâmetros (ex: ?id=123), eles sejam preservados e
+    # repassados para o index.php.
+
+    RewriteRule ^(.*)$ index.php [L,QSA]
+    
+</ifmodule>
