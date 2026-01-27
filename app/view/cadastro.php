@@ -1,5 +1,6 @@
-
+<?php include __DIR__ . '/comuns/header.php'; ?>
 <!-- Cadastro do usúario -->
+
     <div class="container py-5">
         <div class="row justify-content-center">
             <div class="col-lg-8">
@@ -99,3 +100,4 @@
             </div>
         </div>
     </div>
+<?php include __DIR__ . '/comuns/footer.php'; ?>

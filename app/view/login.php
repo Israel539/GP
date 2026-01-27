@@ -1,3 +1,4 @@
+<?php include __DIR__ . '/comuns/header.php'; ?>
     <!-- login -->
     <main class="container-fluid py-5">
 
@@ -61,4 +62,4 @@
             </div>
         </div>
     </main>
-
+<?php include __DIR__ . '/comuns/footer.php'; ?>

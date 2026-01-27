@@ -3,7 +3,7 @@
         'name' => 'gp/mvc',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'ba77e991eb01f7c326df58fde0352731cc2efe2b',
+        'reference' => 'eaf8b0df210cb0fb50086510a041f263da377c1a',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'gp/mvc' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'ba77e991eb01f7c326df58fde0352731cc2efe2b',
+            'reference' => 'eaf8b0df210cb0fb50086510a041f263da377c1a',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

@@ -1,3 +1,5 @@
+<?php include __DIR__ . '/comuns/header.php'; ?>
+
     <!-- Page Content -->
     <div class="container">
         <h1 class="mt-4">GP</h1>
@@ -12,7 +14,7 @@
 
             <div class="col-md-4 d-flex justify-content-center">
                 <div class="card" style="width: 18rem;">
-                    <img src="icone-de-relogio-de-calendario-roxo-conceito-de-notificacao-de-lembrete-3d-website-ui-no-fundo-roxo-ilustracao-de-renderizacao-3d.jpg"
+                    <img src="assets/img/home/agenda_Pessoal.jpg"
                         class="card-img-top" alt="...">
                     <div class="card-body">
                         <h5 class="card-title">Agenda Pessoal</h5>
@@ -32,7 +34,7 @@
 
             <div class="col-md-4 d-flex justify-content-center">
                 <div class="card" style="width: 18rem;">
-                    <img src="empresarios-estao-fazendo-um-brainstorming.jpg" class="card-img-top" alt="...">
+                    <img src="assets/img/home/gestao_Projetos.jpg" class="card-img-top" alt="...">
                     <div class="card-body">
                         <h5 class="card-title">Gestão de Projetos</h5>
                         <h6 class="card-subtitle mb-2 text-body-secondary">Gerencie seus projetos</h6>
@@ -51,7 +53,7 @@
 
             <div class="col-md-4 d-flex justify-content-center">
                 <div class="card" style="width: 18rem;">
-                    <img src="vista-superior-da-equipe-de-pessoas-trabalhando-com-documentos-para-calcular-ganhos.jpg"
+                    <img src="assets/img/home/gestao_Financeira.jpg"
                         class="card-img-top" alt="...">
                     <div class="card-body">
                         <h5 class="card-title">Gestão Financeira</h5>
@@ -71,3 +73,4 @@
 
         </div>
     </div>
+<?php include __DIR__ . '/comuns/footer.php'; ?>

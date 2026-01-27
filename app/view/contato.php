@@ -1,3 +1,4 @@
+<?php include __DIR__ . '/comuns/header.php'; ?>
  <!-- Page Content -->
     <!-- contato -->
     <div class="container py-5">
@@ -57,3 +58,4 @@
             </div>
         </div>
     </div>
+<?php include __DIR__ . '/comuns/footer.php'; ?>

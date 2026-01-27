@@ -15,7 +15,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark static-top">
         <div class="container">
             <a class="navbar-brand" target="_blank" href="https://www.youtube.com/shorts/3fzc7cd8oiM?feature=share">
-                <img src="logo-removebg-preview.png" alt="..." height="36">
+                <img src="assets/img/logo/logo.png" alt="..." height="36">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
                 data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
