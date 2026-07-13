@@ -177,6 +177,34 @@ CREATE TABLE IF NOT EXISTS contatos (
     INDEX idx_contatos_usuario (usuario_id)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS termos (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tipo            VARCHAR(50)    NOT NULL COMMENT 'termos_uso ou politica_privacidade',
+    titulo          VARCHAR(150)   NOT NULL,
+    conteudo        TEXT           NOT NULL,
+    versao          VARCHAR(50)    NOT NULL,
+    ativo           TINYINT(1)     NOT NULL DEFAULT 1,
+    criado_em       DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_termos_tipo_versao (tipo, versao),
+    INDEX idx_termos_tipo_ativo (tipo, ativo)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS usuario_aceite_termos (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    usuario_id      INT UNSIGNED    NOT NULL,
+    termo_id        INT UNSIGNED    NOT NULL,
+    ip              VARCHAR(45)    DEFAULT NULL,
+    user_agent      VARCHAR(255)   DEFAULT NULL,
+    aceito_em       DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_uat_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    CONSTRAINT fk_uat_termo   FOREIGN KEY (termo_id)   REFERENCES termos(id)   ON DELETE CASCADE,
+    UNIQUE KEY uq_uat_usuario_termo (usuario_id, termo_id),
+    INDEX idx_uat_usuario (usuario_id)
+) ENGINE=InnoDB;
+
 -- ============================================================================
 -- MÓDULO 3: GESTÃO FINANCEIRA
 -- ============================================================================

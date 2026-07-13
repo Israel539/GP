@@ -1,13 +1,23 @@
-sql basico para a utilização e atualização das politicas de privacidade e os termos de uso. 
+<?php include __DIR__ . '/comuns/header.php'; ?>
 
-INSERT INTO configuracoes (tipo, conteudo) VALUES 
-('politica_privacidade', '<h1>Política de Privacidade</h1><p>Aqui vai o texto da política...</p>'),
-('termos_uso', '<h1>Termos de Uso</h1><p>Aqui vai o texto dos termos...</p>');
+<div class="container py-5">
+    <h2 class="mb-4">Termos e Políticas</h2>
 
-CREATE TABLE configuracoes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    tipo VARCHAR(50) NOT NULL,  -- Ex: 'politica_privacidade' ou 'termos_uso'
-    conteudo TEXT NOT NULL,     -- O texto completo (pode ser HTML para formatação)
-    data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-https://grok.com/share/c2hhcmQtMw_eab3651f-0d84-49f7-94bd-003737030016
+    <?php if (empty($termos)): ?>
+        <div class="alert alert-warning">Nenhum termo ativo encontrado no momento.</div>
+    <?php else: ?>
+        <?php foreach ($termos as $termo): ?>
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0"><?= htmlspecialchars($termo['titulo']) ?></h4>
+                    <small class="text-muted">Tipo: <?= htmlspecialchars($termo['tipo']) ?> • Versão: <?= htmlspecialchars($termo['versao'] ?? '-') ?></small>
+                </div>
+                <div class="card-body">
+                    <?= $termo['conteudo'] ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
+
+<?php include __DIR__ . '/comuns/footer.php'; ?>

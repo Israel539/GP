@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Library\Request;
 use App\Library\Session;
 use App\Library\Csrf;
+use App\Model\UsuarioModel;
 
 class BaseController
 {
@@ -76,6 +77,32 @@ class BaseController
             Session::set('msgError', 'Para acessar o sistema, faca login primeiro.');
             header("Location: " . BASEURL . "Login");
             exit;
+        }
+
+        $usuario = Session::get(SESSION_USER_KEY);
+        $controllerAtual = $this->request->getController();
+        $metodoAtual = $this->request->getMetodo();
+
+        if (is_array($usuario)) {
+            if ($controllerAtual === 'Termo') {
+                return;
+            }
+
+            if ($controllerAtual === 'Home' && $metodoAtual === 'termoPolitica') {
+                return;
+            }
+
+            $isAdmin = (int) ($usuario['nivel'] ?? 0) === UsuarioModel::NIVEL_ADMIN;
+
+            if (!$isAdmin && !$this->model('Termo')->usuarioAceitouTodosAtivos((int) $usuario['id'])) {
+                header("Location: " . BASEURL . "Termo");
+                exit;
+            }
+
+            if ($isAdmin && $controllerAtual !== 'Admin' && !$this->model('Termo')->usuarioAceitouTodosAtivos((int) $usuario['id'])) {
+                header("Location: " . BASEURL . "Termo");
+                exit;
+            }
         }
     }
 

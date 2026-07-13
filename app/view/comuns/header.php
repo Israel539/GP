@@ -10,7 +10,7 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GP</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="<?= baseUrl() ?>style.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
 </head>
@@ -20,7 +20,7 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark static-top">
         <div class="container">
             <a class="navbar-brand" target="_blank" href="https://www.youtube.com/shorts/3fzc7cd8oiM?feature=share">
-                <img src="assets/img/logo/logo.png" alt="..." height="36">
+                <img src="<?= baseUrl() ?>assets/img/logo/logo.png" alt="Logo GP" height="36">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
                 data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
@@ -68,17 +68,13 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
                                     <li><a class="dropdown-item" href="/Admin/usuarios">Usuarios</a></li>
                                     <li><a class="dropdown-item" href="/Admin/projetos">Todos os projetos</a></li>
                                     <li><a class="dropdown-item" href="/Admin/contatos">Mensagens de contato</a></li>
+                                <li><a class="dropdown-item" href="/Admin/termos">Termos e Políticas</a></li>
                                 </ul>
                             </li>
                         <?php endif; ?>
 
-                        <li class="nav-item">
-                            <span class="nav-link disabled text-white-50">
-                                Ola, <?= htmlspecialchars($usuarioSessao['nome']) ?>
-                            </span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/Login/logout">Sair</a>
+                        <li class="nav-item d-flex align-items-center">
+                            <a class="btn btn-outline-light btn-sm ms-2" href="/Login/logout">Sair</a>
                         </li>
                     <?php else: ?>
                         <li class="nav-item">
@@ -89,17 +85,8 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
                         </li>
                     <?php endif; ?>
 
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                            Informações Adicionais
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="/Home/termoPolitica">Termo/Politica</a></li>
-                            <li><a class="dropdown-item" href="/Home/contato">Contato</a></li>
-                        </ul>
-                    </li>
-                </ul>
+                    </ul>
+                </div>
             </div>
         </div>
     </nav>

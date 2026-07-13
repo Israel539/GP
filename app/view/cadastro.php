@@ -80,7 +80,7 @@
 
                                 <label class="form-check-label small" for="aceite_termos">
                                     Eu aceito os
-                                    <a href="termoPolitica.html" target="_blank" class="text-decoration-none">
+                                    <a href="/Home/termoPolitica" target="_blank" class="text-decoration-none">
                                         Termos de Uso/Política de Privacidade
                                     </a>
                                     .
@@ -99,7 +99,7 @@
                                 <button type="submit" class="btn btn-success btn-lg">
                                     <i class="bi bi-check-circle me-2"></i>Criar Conta
                                 </button>
-                                <a href="login.html" class="btn btn-outline-secondary">
+                                <a href="/Login" class="btn btn-outline-secondary">
                                     <i class="bi bi-arrow-left me-2"></i>Voltar para Login
                                 </a>
                             </div> -->

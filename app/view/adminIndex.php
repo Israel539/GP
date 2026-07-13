@@ -24,9 +24,10 @@
         </div>
     </div>
 
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
         <a href="/Admin/usuarios" class="btn btn-primary">Gerenciar usuarios</a>
         <a href="/Admin/projetos" class="btn btn-outline-primary">Ver todos os projetos</a>
+        <a href="/Admin/termos" class="btn btn-outline-success">Gerenciar termos</a>
     </div>
 </div>
 

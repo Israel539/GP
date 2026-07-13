@@ -27,10 +27,10 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" value="" id="termoPolitica">
 
-                                <label class="form-check-label" for="rememberMe">
+                                <label class="form-check-label" for="termoPolitica">
                                     <div class="text-center small ">
-                                        <a href="termoPolitica.html" target="_blank" class="text-decoration-none">Termo
-                                            de uso/Politica de privacidade</a>.
+                                        <a href="/Home/termoPolitica" target="_blank" class="text-decoration-none">Termo
+                                            de uso/Política de privacidade</a>.
                                     </div>
 
                                 </label>
@@ -52,13 +52,13 @@
                     <hr>
 
                     <div class="text-center small mt-2">
-                        Ao continuar, você concorda com nossas
-                        <a href="/politica-cookies" target="_blank" class="text-decoration-none">Política de
-                            Cookies</a>.
+                        Ao continuar, você concorda com nossos
+                        <a href="/Home/termoPolitica" target="_blank" class="text-decoration-none">Termos de Uso
+                            e Política de Privacidade</a>.
                     </div>
 
                     <div class="text-center mt-2">
-                        Não tem uma conta? <a href="cadastro.html" class="text-decoration-none">Cadastre-se</a>
+                        Não tem uma conta? <a href="/Cadastro" class="text-decoration-none">Cadastre-se</a>
                     </div>
                 </div>
             </div>

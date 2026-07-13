@@ -45,6 +45,9 @@ class Home extends BaseController
 
     public function termoPolitica()
     {
-        return $this->view("termoPolitica");
+        $termoModel = $this->model('Termo');
+        $termos = $termoModel->listarAtivos();
+
+        return $this->view("termoPolitica", ['termos' => $termos]);
     }
 }

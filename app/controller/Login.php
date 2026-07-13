@@ -55,7 +55,14 @@ class Login extends BaseController
                                             "nivel" => $aUser['nivel'],
                                             "senha" => $aUser['senha']
                                         ];
-            
+
+            $termoModel = $this->model('Termo');
+            $aceitouTodos = $termoModel->usuarioAceitouTodosAtivos((int) $aUser['id']);
+
+            if (!$aceitouTodos) {
+                return header("Location: /Termo");
+            }
+
             // Direcionar o usuário para a lista de projetos (area logada)
             return header("Location: /Projeto");
             //

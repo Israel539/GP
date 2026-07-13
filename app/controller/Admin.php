@@ -10,12 +10,14 @@ class Admin extends BaseController
 {
     protected $usuarioModel;
     protected $projetoModel;
+    protected $termoModel;
 
     public function __construct()
     {
         parent::__construct();     // ja garante que tem alguem logado (Admin nao esta em CONTROLLERS_PUBLICOS)
         $this->usuarioModel = $this->model('Usuario');
         $this->projetoModel = $this->model('Projeto');
+        $this->termoModel = $this->model('Termo');
         $this->helper("crud");
 
         $this->verificarAdmin();
@@ -167,6 +169,82 @@ class Admin extends BaseController
         $contatos = $contatoModel->listarTodos();
 
         return $this->view('adminContatos', ['contatos' => $contatos]);
+    }
+
+    public function termos()
+    {
+        $termos = $this->termoModel->listarTodos();
+
+        return $this->view('adminTermos', ['termos' => $termos]);
+    }
+
+    public function salvarTermo()
+    {
+        $post = $this->request->getPost();
+        $tipo = $post['tipo'] ?? '';
+        $titulo = trim($post['titulo'] ?? '');
+        $conteudo = trim($post['conteudo'] ?? '');
+        $versao = trim($post['versao'] ?? '');
+        $ativo = !empty($post['ativo']) ? 1 : 0;
+
+        if (empty($tipo) || empty($titulo) || empty($conteudo)) {
+            Session::set('msgError', 'Tipo, título e conteúdo são obrigatórios.');
+            return header('Location: /Admin/termos');
+        }
+
+        if (empty($versao)) {
+            $versao = date('YmdHis');
+        }
+
+        if ($ativo) {
+            $this->termoModel->desativarAtivosPorTipo($tipo);
+        }
+
+        $novoId = $this->termoModel->inserir([
+            'tipo' => $tipo,
+            'titulo' => $titulo,
+            'conteudo' => $conteudo,
+            'versao' => $versao,
+            'ativo' => $ativo,
+        ]);
+
+        if ($novoId > 0) {
+            Session::set('msgSucesso', 'Termo salvo com sucesso.');
+        } else {
+            Session::set('msgError', 'Não foi possível salvar o termo.');
+        }
+
+        return header('Location: /Admin/termos');
+    }
+
+    public function verTermo()
+    {
+        $termoId = (int) $this->request->getAction();
+        $termo = $this->termoModel->buscarPorId($termoId);
+
+        if (empty($termo)) {
+            Session::set('msgError', 'Termo não encontrado.');
+            return header('Location: /Admin/termos');
+        }
+
+        return $this->view('adminTermo', ['termo' => $termo]);
+    }
+
+    public function ativarTermo()
+    {
+        $termoId = (int) $this->request->getAction();
+        $termo = $this->termoModel->buscarPorId($termoId);
+
+        if (empty($termo)) {
+            Session::set('msgError', 'Termo não encontrado.');
+            return header('Location: /Admin/termos');
+        }
+
+        $this->termoModel->desativarAtivosPorTipo($termo['tipo']);
+        $this->termoModel->ativar($termoId);
+
+        Session::set('msgSucesso', 'Termo ativado com sucesso.');
+        return header('Location: /Admin/termos');
     }
 
     /**
