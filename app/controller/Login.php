@@ -56,8 +56,8 @@ class Login extends BaseController
                                             "senha" => $aUser['senha']
                                         ];
             
-            // Direcionar o usuário para página home da área administrativa
-            return header("Location: /Sistema");
+            // Direcionar o usuário para a lista de projetos (area logada)
+            return header("Location: /Projeto");
             //
 
         } else {

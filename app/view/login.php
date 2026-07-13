@@ -9,6 +9,8 @@
 
                     <form action="/Login/login" method="POST">
 
+                        <?= \App\Library\Csrf::getHiddenField() ?>
+
                         <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
                             <input type="email" class="form-control" name="email" id="email" placeholder="seu@email.com"

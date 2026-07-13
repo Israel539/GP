@@ -1,4 +1,72 @@
 <?php
+
+if (! function_exists('botaoMover')) {
+    /**
+     * botaoMover
+     * Gera um mini-form POST para /Tarefa/mover/{id}/{novoStatus} -- usado
+     * nos cards do Kanban. A validacao real da transicao (RN04) acontece no
+     * TarefaModel::moverStatus(), este botao so dispara o POST.
+     *
+     * @param int $tarefaId
+     * @param string $novoStatus
+     * @param string $rotulo
+     * @return string
+     */
+    function botaoMover(int $tarefaId, string $novoStatus, string $rotulo): string
+    {
+        return '<form action="/Tarefa/mover/' . $tarefaId . '/' . $novoStatus . '" method="POST" class="d-inline">'
+             . \App\Library\Csrf::getHiddenField()
+             . '<button type="submit" class="btn btn-outline-secondary btn-sm">' . htmlspecialchars($rotulo) . '</button>'
+             . '</form>';
+    }
+}
+
+if (! function_exists('campoErro')) {
+    /**
+     * campoErro
+     * Mostra a mensagem de erro de um campo especifico, se houver, guardada
+     * pelo Validator::make() em Session('formErrors'). Nao remove da sessao
+     * aqui -- e a propria view/comuns/erros.php ou o proximo request que
+     * decide quando limpar (evita some antes de todos os campos serem lidos).
+     *
+     * @param string $campo
+     * @return string
+     */
+    function campoErro(string $campo): string
+    {
+        $erros = \App\Library\Session::get('formErrors');
+
+        if (!is_array($erros) || empty($erros[$campo])) {
+            return '';
+        }
+
+        return '<div class="text-danger small mt-1">' . $erros[$campo] . '</div>';
+    }
+}
+
+if (! function_exists('valorAntigo')) {
+    /**
+     * valorAntigo
+     * Repopula um input com o valor enviado no POST anterior, guardado pelo
+     * Validator::make() em Session('formInputs'), para o usuario nao perder
+     * o que ja tinha digitado quando o formulario volta com erro.
+     *
+     * @param string $campo
+     * @param string $default
+     * @return string
+     */
+    function valorAntigo(string $campo, string $default = ''): string
+    {
+        $inputs = \App\Library\Session::get('formInputs');
+
+        if (!is_array($inputs) || !isset($inputs[$campo])) {
+            return $default;
+        }
+
+        return htmlspecialchars((string) $inputs[$campo], ENT_QUOTES, 'UTF-8');
+    }
+}
+
 if (! function_exists('mensagens')) {
     /**
      * mensagens
@@ -41,15 +109,20 @@ if (! function_exists('mensagens')) {
     }
 }
 
-if (! function_exists('header')) {
+if (! function_exists('cabecalhoCrud')) {
     /**
-     * header
+     * cabecalhoCrud
+     * Renomeada de 'header' para 'cabecalhoCrud' -- 'header' e uma funcao
+     * nativa do PHP (envia cabecalhos HTTP) e NUNCA pode ser redeclarada no
+     * namespace global. O guard 'function_exists' abaixo dela sempre
+     * retornava true (por causa da funcao nativa), entao esse helper de
+     * titulo de tela CRUD nunca era de fato carregado -- ficava morto.
      *
-     * @param string $titulo 
-     * @param string $programa 
+     * @param string $titulo
+     * @param string $programa
      * @return string
      */
-    function header(
+    function cabecalhoCrud(
         string $titulo, 
         string $programa
         ) : string

@@ -16,6 +16,8 @@
                     <div class="card-body p-4">
                         <form action="#" method="POST">
 
+                        <?= \App\Library\Csrf::getHiddenField() ?>
+
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="nome_contato" class="form-label">Nome Completo</label>
