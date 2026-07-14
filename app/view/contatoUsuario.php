@@ -1,5 +1,10 @@
-<?php include __DIR__ . '/comuns/header.php'; ?>
-<?php $usuario = $usuario ?? ['nome' => '', 'email' => '']; ?>
+<?php
+/** @var array $contatos */
+/** @var array $usuario */
+/** @var int $excluidosCount */
+include __DIR__ . '/comuns/header.php';
+
+$usuario = $usuario ?? ['nome' => '', 'email' => '']; ?>
 
 <div class="container py-5">
     <?= mensagens() ?>
@@ -46,9 +51,29 @@
             </div>
 
             <div class="card card-custom shadow-lg">
-                <div class="card-header card-header-custom text-center py-4">
-                    <h3 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Historico de contato</h3>
-                    <p class="mb-0 mt-2 opacity-75">Veja as mensagens que você enviou e as respostas do administrador.</p>
+                <div class="card-header card-header-custom d-flex justify-content-between align-items-center py-3">
+                    <div>
+                        <h3 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Historico de contato</h3>
+                        <p class="mb-0 mt-2 opacity-75">Veja as mensagens que você enviou e as respostas do administrador.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <?php if (!empty($contatos)): ?>
+                            <form action="/Contato/limparHistorico" method="POST" onsubmit="return confirm('Tem certeza que deseja limpar todo o historico de contato? Esta acao nao pode ser desfeita.');">
+                                <?= \App\Library\Csrf::getHiddenField() ?>
+                                <button type="submit" class="btn btn-outline-danger">Limpar histórico</button>
+                            </form>
+                        <?php endif; ?>
+
+                        <?php if (!empty($excluidosCount) && $excluidosCount > 0): ?>
+                            <form action="/Contato/restaurarHistorico" method="POST" onsubmit="return confirm('Restaurar historico excluido?');">
+                                <?= \App\Library\Csrf::getHiddenField() ?>
+                                <button type="submit" class="btn btn-outline-success">Restaurar histórico (<?= (int) $excluidosCount ?>)</button>
+                            </form>
+                            <div class="d-flex align-items-center ms-2">
+                                <small class="text-muted">Restauração disponível por <?= (int) RESTORE_WINDOW_HOURS ?>h após exclusão.</small>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div class="card-body p-4">
                     <?php if (empty($contatos)): ?>

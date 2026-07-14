@@ -59,3 +59,6 @@
     defined('CSRF_REGENERATE')   || define('CSRF_REGENERATE', false);
 
     defined('CSRF_EXCLUDE_URIS') || define('CSRF_EXCLUDE_URIS', []);
+
+    // Janela (em horas) para permitir undo (restauracao) apos soft-delete
+    defined('RESTORE_WINDOW_HOURS') || define('RESTORE_WINDOW_HOURS', 24);

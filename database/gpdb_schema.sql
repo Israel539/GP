@@ -166,10 +166,11 @@ CREATE TABLE IF NOT EXISTS contatos (
     assunto         VARCHAR(150)    NOT NULL,
     mensagem        TEXT            NOT NULL,
     resposta        TEXT            DEFAULT NULL,
-    status          ENUM('pendente','respondido') NOT NULL DEFAULT 'pendente',
+    status          ENUM('pendente','respondido','excluido') NOT NULL DEFAULT 'pendente',
     respondido_por  INT UNSIGNED    DEFAULT NULL,
     criado_em       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     respondido_em   DATETIME        DEFAULT NULL,
+    excluido_em     DATETIME        DEFAULT NULL,
 
     CONSTRAINT fk_contato_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
     CONSTRAINT fk_contato_admin FOREIGN KEY (respondido_por) REFERENCES usuarios(id) ON DELETE SET NULL,
@@ -220,6 +221,26 @@ CREATE TABLE IF NOT EXISTS contas (
     criado_em           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_contas_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS planos_compra (
+    id                      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    usuario_id              INT UNSIGNED NOT NULL,
+    nome                    VARCHAR(150) NOT NULL,
+    descricao               TEXT             DEFAULT NULL,
+    imagem_url              VARCHAR(255)     DEFAULT NULL,
+    produto_url             VARCHAR(255)     DEFAULT NULL,
+    valor_total             DECIMAL(14,2)   NOT NULL DEFAULT 0.00,
+    parcelas_previstas      TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    status                  ENUM('planejamento','em_andamento','concluido','cancelado','excluido') NOT NULL DEFAULT 'planejamento',
+    data_prevista_compra    DATE             DEFAULT NULL,
+    data_conclusao          DATE             DEFAULT NULL,
+    criado_em               DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em           DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    excluido_em             DATETIME         DEFAULT NULL,
+
+    CONSTRAINT fk_plano_compra_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    INDEX idx_planos_usuario_status (usuario_id, status)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS cartoes_credito (

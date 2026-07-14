@@ -17,6 +17,7 @@ class Home extends BaseController
         $compromissoModel = $this->model('Compromisso');
         $projetoModel      = $this->model('Projeto');
         $contaModel        = $this->model('Conta');
+        $planoCompraModel  = $this->model('PlanoCompra');
         $usuarioModel      = $this->model('Usuario');
 
         $isAdmin = $usuarioModel->isAdmin($usuarioSessao);
@@ -24,6 +25,7 @@ class Home extends BaseController
         $proximosCompromissos = $compromissoModel->proximosPorUsuario($usuarioId, 5);
         $projetos             = $projetoModel->listarPorUsuario($usuarioId, $isAdmin);
         $contas               = $contaModel->listarPorUsuario($usuarioId, $isAdmin);
+        $planosCompra         = $planoCompraModel->listarPorUsuario($usuarioId);
 
         $saldoTotal = array_sum(array_column($contas, 'saldo_atual'));
 
@@ -33,6 +35,7 @@ class Home extends BaseController
             'proximosCompromissos' => $proximosCompromissos,
             'totalProjetos'        => count($projetos),
             'totalContas'          => count($contas),
+            'totalPlanosCompra'    => count($planosCompra),
             'saldoTotal'           => $saldoTotal,
         ]);
     }

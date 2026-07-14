@@ -33,6 +33,8 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
     $metodoAtual = $request->getMetodo();
     $homeAtivo = $controllerAtual === 'Home' && $metodoAtual === 'index' ? 'active' : '';
     $contatoAtivo = $controllerAtual === 'Contato' || ($controllerAtual === 'Home' && $metodoAtual === 'contato') ? 'active' : '';
+    $financeiroAtivo = $controllerAtual === 'Conta' ? 'active' : '';
+    $comprasAtivo = $controllerAtual === 'PlanoCompra' ? 'active' : '';
     ?>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav ms-auto">
@@ -51,7 +53,10 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
                             <a class="nav-link" href="/Projeto">Projetos</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/Conta">Financeiro</a>
+                            <a class="nav-link <?= $financeiroAtivo ?>" href="/Conta">Financeiro</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <?= $comprasAtivo ?>" href="/PlanoCompra">Compras</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="/Cartao">Cartoes</a>

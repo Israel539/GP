@@ -1,4 +1,8 @@
-<?php include __DIR__ . '/comuns/header.php'; ?>
+<?php
+/** @var array $projeto */
+/** @var array $colaboradores */
+/** @var array $tarefas */
+include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container-fluid py-4">
 

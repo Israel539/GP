@@ -18,6 +18,7 @@ use App\Model\TagModel;
 use App\Model\CartaoCreditoModel;
 use App\Model\FaturaModel;
 use App\Model\TransacaoModel;
+use App\Model\PlanoCompraModel;
 
 $totalTestes = 0;
 $totalFalhas = 0;
@@ -137,6 +138,7 @@ $tagModel       = new TagModel();
 $cartaoModel    = new CartaoCreditoModel();
 $faturaModel    = new FaturaModel();
 $transacaoModel = new TransacaoModel();
+$planoCompraModel = new PlanoCompraModel();
 
 $idConta = $contaModel->criar(['nome' => 'Conta Corrente Teste', 'saldo_inicial' => 1000], $idBeto);
 checar('Conta criada com saldo inicial', $contaModel->saldoAtual($idConta) === 1000.0);
@@ -149,6 +151,19 @@ $transacaoModel->criarManual([
     'data_fato_gerador' => date('Y-m-d'),
 ]);
 checar('RN08/RN09: pix debita o saldo imediatamente (1000 - 150 = 850)', $contaModel->saldoAtual($idConta) === 850.0);
+
+$idPlanoCompra = $planoCompraModel->criar([
+    'nome' => 'Geladeira nova',
+    'descricao' => 'Comprar geladeira 450L inox com pagamento em 10x',
+    'imagem_url' => 'https://example.com/geladeira.jpg',
+    'produto_url' => 'https://example.com/produto/geladeira',
+    'valor_total' => 3200.00,
+    'parcelas_previstas' => 10,
+    'data_prevista_compra' => date('Y-m-d', strtotime('+30 days')),
+], $idBeto);
+checar('Plano de compra criado com id > 0', $idPlanoCompra > 0);
+$planoSalvo = $planoCompraModel->buscarPorId($idPlanoCompra);
+checar('Plano de compra tem status planejamento', $planoSalvo['status'] === 'planejamento');
 
 $idCartao = $cartaoModel->criar(['nome' => 'Cartao Teste', 'dia_fechamento' => 5, 'dia_vencimento' => 15], $idConta);
 

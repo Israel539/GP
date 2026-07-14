@@ -1,4 +1,7 @@
-<?php include __DIR__ . '/comuns/header.php'; ?>
+<?php
+/** @var int $totalUsuarios */
+/** @var int $totalProjetos */
+include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container py-5">
     <h2 class="mb-4">Painel do Administrador</h2>

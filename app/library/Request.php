@@ -94,6 +94,24 @@ class Request
     }
 
     /**
+     * getQuery
+     * Retorna um valor GET específico ou todos os parâmetros GET.
+     *
+     * @param string|null $key
+     * @return mixed
+     */
+    public function getQuery(?string $key = null)
+    {
+        $get = $this->getGet();
+
+        if ($key === null) {
+            return $get;
+        }
+
+        return $get[$key] ?? null;
+    }
+
+    /**
      * trimRecursive
      *
      * @param array $data

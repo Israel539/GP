@@ -1,4 +1,6 @@
-<?php include __DIR__ . '/comuns/header.php'; ?>
+<?php
+/** @var array $termo */
+include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container py-5">
     <h2 class="mb-4">Visualizar Termo</h2>

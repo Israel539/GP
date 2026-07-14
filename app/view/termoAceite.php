@@ -1,4 +1,6 @@
-<?php include __DIR__ . '/comuns/header.php'; ?>
+<?php
+/** @var array $termos */
+include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container py-5">
     <?= mensagens() ?>

@@ -4,13 +4,15 @@ namespace App\Controller;
 
 use App\Library\Mailer;
 use App\Library\Session;
+use App\Model\ProjetoModel;
+use App\Model\TermoModel;
 use App\Model\UsuarioModel;
 
 class Admin extends BaseController
 {
-    protected $usuarioModel;
-    protected $projetoModel;
-    protected $termoModel;
+    protected UsuarioModel $usuarioModel;
+    protected ProjetoModel $projetoModel;
+    protected TermoModel $termoModel;
 
     public function __construct()
     {
@@ -165,10 +167,28 @@ class Admin extends BaseController
      */
     public function contatos()
     {
+        $mostrarExcluidos = $this->request->getQuery('show') === 'excluidos';
         $contatoModel = $this->model('Contato');
-        $contatos = $contatoModel->listarTodos();
+        $contatos = $contatoModel->listarTodos($mostrarExcluidos);
 
-        return $this->view('adminContatos', ['contatos' => $contatos]);
+        return $this->view('adminContatos', [
+            'contatos' => $contatos,
+            'mostrarExcluidos' => $mostrarExcluidos,
+        ]);
+    }
+
+    public function restaurarContatos()
+    {
+        $contatoModel = $this->model('Contato');
+        $ok = $contatoModel->restaurarExcluidos();
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Todos os contatos excluídos foram restaurados.');
+        } else {
+            Session::set('msgError', 'Nao foi possivel restaurar os contatos excluidos.');
+        }
+
+        return header('Location: /Admin/contatos?show=excluidos');
     }
 
     public function termos()

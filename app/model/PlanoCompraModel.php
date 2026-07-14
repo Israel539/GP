@@ -1,0 +1,207 @@
+<?php
+
+namespace App\Model;
+
+class PlanoCompraModel extends BaseModel
+{
+    protected $validationRules = [
+        'nome' => ['rules' => 'required|min:3|max:150', 'label' => 'Nome do plano'],
+        'valor_total' => ['rules' => 'required|float', 'label' => 'Valor total'],
+        'parcelas_previstas' => ['rules' => 'required|int', 'label' => 'Parcelas previstas'],
+    ];
+
+    /**
+     * criar
+     * @param array $dados
+     * @param int $usuarioId
+     * @return int
+     */
+    public function criar(array $dados, int $usuarioId): int
+    {
+        $sql = "INSERT INTO planos_compra
+                    (usuario_id, nome, descricao, imagem_url, produto_url,
+                     valor_total, parcelas_previstas, status, data_prevista_compra)
+                VALUES
+                    (:usuario_id, :nome, :descricao, :imagem_url, :produto_url,
+                     :valor_total, :parcelas_previstas, :status, :data_prevista_compra)";
+
+        return $this->connDb->insert($sql, [
+            'usuario_id'           => $usuarioId,
+            'nome'                 => $dados['nome'],
+            'descricao'            => $dados['descricao'] ?? null,
+            'imagem_url'           => $dados['imagem_url'] ?? null,
+            'produto_url'          => $dados['produto_url'] ?? null,
+            'valor_total'          => $dados['valor_total'],
+            'parcelas_previstas'   => $dados['parcelas_previstas'] ?? 1,
+            'status'               => 'planejamento',
+            'data_prevista_compra' => $dados['data_prevista_compra'] ?? null,
+        ]);
+    }
+
+    /**
+     * listarPorUsuario
+     * @param int $usuarioId
+     * @return array
+     */
+    public function listarPorUsuario(int $usuarioId, string $search = '', int $page = 1, int $perPage = 6, bool $includeExcluidos = false): array
+    {
+        $offset = max(0, ($page - 1) * $perPage);
+        $where = "usuario_id = :usuario_id";
+        $params = ['usuario_id' => $usuarioId];
+
+        if (!$includeExcluidos) {
+            $where .= " AND status != 'excluido'";
+        }
+
+        if ($search !== '') {
+            $where .= " AND (nome LIKE :search OR descricao LIKE :search OR produto_url LIKE :search)";
+            $params['search'] = '%' . $search . '%';
+        }
+
+        $limit = max(1, (int) $perPage);
+        $offset = max(0, (int) $offset);
+
+        $sql = "SELECT * FROM planos_compra
+            WHERE {$where}
+            ORDER BY status ASC, atualizado_em DESC
+            LIMIT {$limit} OFFSET {$offset}";
+
+        return $this->connDb->select($sql, $params);
+    }
+
+    public function contarPorUsuario(int $usuarioId, string $search = '', bool $includeExcluidos = false): int
+    {
+        $where = "usuario_id = :usuario_id";
+        $params = ['usuario_id' => $usuarioId];
+
+        if (!$includeExcluidos) {
+            $where .= " AND status != 'excluido'";
+        }
+
+        if ($search !== '') {
+            $where .= " AND (nome LIKE :search OR descricao LIKE :search OR produto_url LIKE :search)";
+            $params['search'] = '%' . $search . '%';
+        }
+
+        $sql = "SELECT COUNT(*) AS cnt FROM planos_compra WHERE {$where}";
+        $row = $this->connDb->select($sql, $params, 'one');
+
+        return isset($row['cnt']) ? (int) $row['cnt'] : 0;
+    }
+
+    /**
+     * buscarPorId
+     * @param int $id
+     * @return array
+     */
+    public function buscarPorId(int $id): array
+    {
+        $sql = "SELECT * FROM planos_compra WHERE id = :id LIMIT 1";
+        return $this->connDb->select($sql, ['id' => $id], 'one');
+    }
+
+    /**
+     * atualizar
+     * @param int $id
+     * @param array $dados
+     * @return bool
+     */
+    public function atualizar(int $id, array $dados): bool
+    {
+        $sets = [];
+        $params = ['id' => $id];
+
+        foreach ($dados as $campo => $valor) {
+            $sets[] = "{$campo} = :{$campo}";
+            $params[$campo] = $valor;
+        }
+
+        if (empty($sets)) {
+            return false;
+        }
+
+        $sql = "UPDATE planos_compra SET " . implode(', ', $sets) . " WHERE id = :id";
+        $this->connDb->update($sql, $params);
+
+        return true;
+    }
+
+    /**
+     * deletar
+     * Remove o plano do banco (exclusao definitiva). Use com cautela.
+     * @param int $id
+     * @return bool
+     */
+    public function deletar(int $id): bool
+    {
+        // soft-delete: marca como 'excluido' e registra timestamp
+        $sql = "UPDATE planos_compra SET status = 'excluido', excluido_em = CURRENT_TIMESTAMP WHERE id = :id";
+        return $this->connDb->update($sql, ['id' => $id]) !== false;
+    }
+
+    /**
+     * contarExcluidosPorUsuario
+     */
+    public function contarExcluidosPorUsuario(int $usuarioId): int
+    {
+        $sql = "SELECT COUNT(*) AS cnt FROM planos_compra WHERE usuario_id = :usuario_id AND status = 'excluido'";
+        $row = $this->connDb->select($sql, ['usuario_id' => $usuarioId], 'one');
+        return isset($row['cnt']) ? (int) $row['cnt'] : 0;
+    }
+
+    /**
+     * restaurar
+     */
+    public function restaurar(int $id): bool
+    {
+        $window = defined('RESTORE_WINDOW_HOURS') ? (int) RESTORE_WINDOW_HOURS : 24;
+        $cutoff = date('Y-m-d H:i:s', strtotime("-{$window} hours"));
+
+        $sql = "UPDATE planos_compra SET status = 'planejamento', excluido_em = NULL WHERE id = :id AND status = 'excluido' AND excluido_em >= :cutoff";
+        return $this->connDb->update($sql, ['id' => $id, 'cutoff' => $cutoff]) !== false;
+    }
+
+    /**
+     * restaurarTodosPorUsuario
+     * Restaura todos os planos excluidos de um usuario dentro da janela de undo.
+     */
+    public function restaurarTodosPorUsuario(int $usuarioId): bool
+    {
+        $window = defined('RESTORE_WINDOW_HOURS') ? (int) RESTORE_WINDOW_HOURS : 24;
+        $cutoff = date('Y-m-d H:i:s', strtotime("-{$window} hours"));
+
+        $sql = "UPDATE planos_compra
+                SET status = 'planejamento', excluido_em = NULL
+                WHERE usuario_id = :usuario_id
+                AND status = 'excluido'
+                AND excluido_em >= :cutoff";
+
+        return $this->connDb->update($sql, ['usuario_id' => $usuarioId, 'cutoff' => $cutoff]) !== false;
+    }
+
+    /**
+     * finalizar
+     * Marca o plano como concluido e grava data de conclusao.
+     * @param int $id
+     * @return bool
+     */
+    public function finalizar(int $id): bool
+    {
+        $sql = "UPDATE planos_compra
+                SET status = 'concluido', data_conclusao = CURRENT_DATE()
+                WHERE id = :id";
+
+        return $this->connDb->update($sql, ['id' => $id]) > 0;
+    }
+
+    /**
+     * cancelar
+     * @param int $id
+     * @return bool
+     */
+    public function cancelar(int $id): bool
+    {
+        $sql = "UPDATE planos_compra SET status = 'cancelado' WHERE id = :id";
+        return $this->connDb->update($sql, ['id' => $id]) > 0;
+    }
+}

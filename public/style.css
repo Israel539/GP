@@ -1,0 +1,25 @@
+/* Custom styles for GP app */
+
+/* Limit product images in plan cards */
+.plano-img {
+  max-height: 420px;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Make card text wrap nicely and keep consistent height */
+.card .card-text {
+  white-space: normal;
+  overflow: hidden;
+}
+
+/* Small buttons group spacing */
+.btn-group .btn {
+  margin-left: 4px;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .plano-img { max-height: 260px; }
+}

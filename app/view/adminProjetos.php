@@ -1,4 +1,6 @@
-<?php include __DIR__ . '/comuns/header.php'; ?>
+<?php
+/** @var array $projetos */
+include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container py-5">
     <h2 class="mb-4">Todos os projetos</h2>

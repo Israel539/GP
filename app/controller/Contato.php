@@ -19,7 +19,13 @@ class Contato extends BaseController
 
         if (is_array($usuario)) {
             $contatos = $contatoModel->listarPorUsuario((int) $usuario['id']);
-            return $this->view('contatoUsuario', ['contatos' => $contatos, 'usuario' => $usuario]);
+            $excluidosCount = $contatoModel->contarExcluidosPorUsuario((int) $usuario['id']);
+
+            return $this->view('contatoUsuario', [
+                'contatos' => $contatos,
+                'usuario' => $usuario,
+                'excluidosCount' => $excluidosCount,
+            ]);
         }
 
         return $this->view('contatoPublico');
@@ -64,5 +70,48 @@ class Contato extends BaseController
 
         Session::set('msgSucesso', 'Sua mensagem foi enviada. O administrador sera notificado.');
         return header('Location: /Home/contato');
+    }
+
+    public function limparHistorico()
+    {
+        $usuario = $this->usuarioLogado();
+
+        if (!is_array($usuario)) {
+            // somente usuarios logados podem limpar seu historico
+            Session::set('msgError', 'Usuario nao autenticado.');
+            return header('Location: /Home/contato');
+        }
+
+        $contatoModel = $this->model('Contato');
+        $ok = $contatoModel->limparPorUsuario((int) $usuario['id']);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Historico de contato limpo com sucesso.');
+        } else {
+            Session::set('msgError', 'Nao foi possivel limpar o historico.');
+        }
+
+        return header('Location: /Contato');
+    }
+
+    public function restaurarHistorico()
+    {
+        $usuario = $this->usuarioLogado();
+
+        if (!is_array($usuario)) {
+            Session::set('msgError', 'Usuario nao autenticado.');
+            return header('Location: /Home/contato');
+        }
+
+        $contatoModel = $this->model('Contato');
+        $ok = $contatoModel->restaurarPorUsuario((int) $usuario['id']);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Historico restaurado com sucesso.');
+        } else {
+            Session::set('msgError', 'Nao foi possivel restaurar o historico.');
+        }
+
+        return header('Location: /Contato');
     }
 }

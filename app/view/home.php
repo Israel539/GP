@@ -1,4 +1,9 @@
-<?php include __DIR__ . '/comuns/header.php'; ?>
+<?php
+/** @var int $totalProjetos */
+/** @var int $totalContas */
+/** @var int $totalPlanosCompra */
+/** @var float|int $saldoTotal */
+include __DIR__ . '/comuns/header.php'; ?>
 
 <?php if (!empty($estaLogado)): ?>
 
@@ -19,7 +24,7 @@
         <?= mensagens() ?>
 
         <div class="row g-3 mb-4">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body text-center">
                         <span class="badge bg-secondary mb-3">Projetos</span>
@@ -29,7 +34,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body text-center">
                         <span class="badge bg-secondary mb-3">Contas</span>
@@ -39,7 +44,17 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center">
+                        <span class="badge bg-secondary mb-3">Compras</span>
+                        <h1 class="display-5 mb-2"><?= (int) $totalPlanosCompra ?></h1>
+                        <p class="text-muted mb-3">Planos de compra cadastrados</p>
+                        <a href="/PlanoCompra" class="btn btn-outline-dark btn-sm">Ver planos</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
                 <div class="card h-100 border-0 shadow-sm">
                     <div class="card-body text-center">
                         <span class="badge bg-secondary mb-3">Saldo</span>
