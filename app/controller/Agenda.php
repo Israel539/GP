@@ -49,7 +49,10 @@ class Agenda extends BaseController
         if ($idParaEditar !== "" && $idParaEditar !== null) {
             $usuario = $this->usuarioLogado();
 
-            if (!$this->model->usuarioEhDono((int) $idParaEditar, (int) $usuario['id'])) {
+            // Visualizar (nao editar de fato -- isso so acontece em salvar())
+            // aceita acesso de suporte auditado, alem do proprio dono.
+            if (!$this->model->usuarioEhDono((int) $idParaEditar, (int) $usuario['id'])
+                && !$this->temAcessoSuporteAtivo('compromisso', (int) $idParaEditar)) {
                 return $this->negarAcesso();
             }
 

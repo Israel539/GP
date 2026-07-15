@@ -9,7 +9,6 @@ class Projeto extends BaseController
     protected $model;
     protected $tarefaModel;
     protected $mensagemModel;
-    protected $usuarioModel;
 
     public function __construct()
     {
@@ -17,24 +16,23 @@ class Projeto extends BaseController
         $this->model         = $this->model('Projeto');
         $this->tarefaModel   = $this->model('Tarefa');
         $this->mensagemModel = $this->model('MensagemProjeto');
-        $this->usuarioModel  = $this->model('Usuario');
         $this->helper("crud");
     }
 
     /**
      * index
-     * Lista os projetos do usuario logado (ou todos, se for admin).
+     * Lista os projetos do usuario logado. Admin NAO ve projeto de ninguem
+     * aqui -- ve so os proprios (se tiver algum) -- ver Admin::suporteAcessar()
+     * para acesso pontual e auditado a um projeto especifico.
      *
      * @return void
      */
     public function index()
     {
         $usuario = $this->usuarioLogado();
-        $isAdmin = $this->usuarioModel->isAdmin($usuario);
+        $projetos = $this->model->listarPorUsuario((int) $usuario['id']);
 
-        $projetos = $this->model->listarPorUsuario((int) $usuario['id'], $isAdmin);
-
-        return $this->view("projetos", ['projetos' => $projetos, 'isAdmin' => $isAdmin]);
+        return $this->view("projetos", ['projetos' => $projetos]);
     }
 
     /**
@@ -84,9 +82,8 @@ class Projeto extends BaseController
     {
         $projetoId = (int) $this->request->getAction();
         $usuario   = $this->usuarioLogado();
-        $isAdmin   = $this->usuarioModel->isAdmin($usuario);
 
-        if (!$this->autorizado($projetoId, (int) $usuario['id'], $isAdmin)) {
+        if (!$this->podeVisualizar($projetoId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 
@@ -113,9 +110,8 @@ class Projeto extends BaseController
     {
         $projetoId = (int) $this->request->getAction();
         $usuario   = $this->usuarioLogado();
-        $isAdmin   = $this->usuarioModel->isAdmin($usuario);
 
-        if (!$this->autorizado($projetoId, (int) $usuario['id'], $isAdmin)) {
+        if (!$this->podeGerenciar($projetoId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 
@@ -152,11 +148,8 @@ class Projeto extends BaseController
             // O convite (token) ja foi gravado no banco -- isso funciona
             // independente do e-mail. Mas o e-mail em si falhou, e o usuario
             // precisa saber disso (em vez de acreditar que foi enviado).
-            // O motivo detalhado (ex: erro de autenticacao SMTP) vai pro
-            // error_log do PHP, nao pra tela, para nao vazar detalhe tecnico.
             Session::set('msgError', "O convite foi registrado, mas o e-mail para {$email} NAO pode ser enviado agora. Veja o log do PHP para o motivo, ou compartilhe o link manualmente: <a href=\"{$linkConvite}\">{$linkConvite}</a>");
-            // Session::set('msgError', "O convite foi registrado, mas o e-mail para {$email} NAO pode ser enviado agora. Veja o log do PHP para o motivo, ou compartilhe o link manualmente.");
-        }   
+        }
 
         return header("Location: /Projeto/kanban/{$projetoId}");
     }
@@ -193,9 +186,8 @@ class Projeto extends BaseController
     {
         $projetoId = (int) $this->request->getAction();
         $usuario   = $this->usuarioLogado();
-        $isAdmin   = $this->usuarioModel->isAdmin($usuario);
 
-        if (!$this->autorizado($projetoId, (int) $usuario['id'], $isAdmin)) {
+        if (!$this->podeGerenciar($projetoId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 
@@ -220,9 +212,8 @@ class Projeto extends BaseController
     {
         $projetoId = (int) $this->request->getAction();
         $usuario   = $this->usuarioLogado();
-        $isAdmin   = $this->usuarioModel->isAdmin($usuario);
 
-        if (!$this->autorizado($projetoId, (int) $usuario['id'], $isAdmin)) {
+        if (!$this->podeGerenciar($projetoId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 
@@ -237,18 +228,36 @@ class Projeto extends BaseController
     }
 
     /**
-     * autorizado
-     * RN de autorizacao: so quem participa do projeto (dono/colaborador) ou
-     * um admin do sistema pode ver/mexer nele.
+     * podeVisualizar
+     * Quem participa do projeto (dono/colaborador) SEMPRE pode ver. Um admin
+     * com concessao de suporte ATIVA e ESPECIFICA para este projeto (ver
+     * Admin::suporteAcessar()) tambem pode -- mas so ver, nunca agir (ver
+     * podeGerenciar abaixo). Isso e o que abre o Kanban em modo leitura.
      *
      * @param int $projetoId
      * @param int $usuarioId
-     * @param bool $isAdmin
      * @return bool
      */
-    protected function autorizado(int $projetoId, int $usuarioId, bool $isAdmin): bool
+    protected function podeVisualizar(int $projetoId, int $usuarioId): bool
     {
-        return $isAdmin || $this->model->usuarioParticipa($projetoId, $usuarioId);
+        return $this->model->usuarioParticipa($projetoId, $usuarioId)
+            || $this->temAcessoSuporteAtivo('projeto', $projetoId);
+    }
+
+    /**
+     * podeGerenciar
+     * Acoes que MUDAM algo ou falam em nome de alguem (convidar, concluir,
+     * mandar mensagem no chat) exigem participacao de verdade no projeto.
+     * Acesso de suporte NUNCA da bypass aqui -- suporte e so para inspecionar,
+     * nao para agir como se fosse o usuario.
+     *
+     * @param int $projetoId
+     * @param int $usuarioId
+     * @return bool
+     */
+    protected function podeGerenciar(int $projetoId, int $usuarioId): bool
+    {
+        return $this->model->usuarioParticipa($projetoId, $usuarioId);
     }
 
     /**

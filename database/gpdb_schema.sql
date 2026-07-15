@@ -337,6 +337,30 @@ CREATE TABLE IF NOT EXISTS transacao_tags (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================
+-- MÓDULO ADMIN: ACESSO DE SUPORTE COM AUDITORIA
+-- ============================================================================
+-- Admin NAO tem acesso irrestrito a dados privados de usuarios (saldo,
+-- projetos, agenda, cartao). O unico jeito de um admin abrir um recurso
+-- especifico de outra pessoa e passando por aqui: justificando o motivo,
+-- ficando registrado permanentemente, e com validade curta (ver
+-- LogAcessoSuporteModel::DURACAO_PADRAO_MINUTOS).
+CREATE TABLE IF NOT EXISTS log_acesso_suporte (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    admin_id        INT UNSIGNED NOT NULL,
+    usuario_alvo_id INT UNSIGNED DEFAULT NULL COMMENT 'Dono do recurso acessado (resolvido no momento da concessao)',
+    tipo_recurso    ENUM('projeto','conta','cartao','fatura','compromisso','plano_compra') NOT NULL,
+    recurso_id      INT UNSIGNED NOT NULL,
+    motivo          TEXT NOT NULL,
+    concedido_em    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expira_em       DATETIME NOT NULL,
+
+    CONSTRAINT fk_log_suporte_admin   FOREIGN KEY (admin_id)        REFERENCES usuarios(id) ON DELETE CASCADE,
+    CONSTRAINT fk_log_suporte_usuario FOREIGN KEY (usuario_alvo_id) REFERENCES usuarios(id) ON DELETE SET NULL,
+    INDEX idx_log_suporte_admin (admin_id),
+    INDEX idx_log_suporte_recurso (tipo_recurso, recurso_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
 -- VIEW auxiliar para RN08 (saldo consolidado em tempo real por conta)
 -- ============================================================================
 CREATE OR REPLACE VIEW vw_saldo_contas AS

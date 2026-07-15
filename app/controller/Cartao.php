@@ -10,7 +10,6 @@ class Cartao extends BaseController
     protected $contaModel;
     protected $faturaModel;
     protected $transacaoModel;
-    protected $usuarioModel;
 
     public function __construct()
     {
@@ -19,7 +18,6 @@ class Cartao extends BaseController
         $this->contaModel     = $this->model('Conta');
         $this->faturaModel    = $this->model('Fatura');
         $this->transacaoModel = $this->model('Transacao');
-        $this->usuarioModel   = $this->model('Usuario');
         $this->helper("crud");
     }
 
@@ -96,9 +94,8 @@ class Cartao extends BaseController
     {
         $cartaoId = (int) $this->request->getAction();
         $usuario  = $this->usuarioLogado();
-        $isAdmin  = $this->usuarioModel->isAdmin($usuario);
 
-        if (!$isAdmin && !$this->model->usuarioEhDono($cartaoId, (int) $usuario['id'])) {
+        if (!$this->model->usuarioEhDono($cartaoId, (int) $usuario['id']) && !$this->temAcessoSuporteAtivo('cartao', $cartaoId)) {
             return $this->negarAcesso();
         }
 
@@ -118,9 +115,8 @@ class Cartao extends BaseController
     {
         $faturaId = (int) $this->request->getAction();
         $usuario  = $this->usuarioLogado();
-        $isAdmin  = $this->usuarioModel->isAdmin($usuario);
 
-        if (!$isAdmin && !$this->faturaModel->usuarioEhDono($faturaId, (int) $usuario['id'])) {
+        if (!$this->faturaModel->usuarioEhDono($faturaId, (int) $usuario['id']) && !$this->temAcessoSuporteAtivo('fatura', $faturaId)) {
             return $this->negarAcesso();
         }
 
@@ -142,9 +138,10 @@ class Cartao extends BaseController
     {
         $faturaId = (int) $this->request->getAction();
         $usuario  = $this->usuarioLogado();
-        $isAdmin  = $this->usuarioModel->isAdmin($usuario);
 
-        if (!$isAdmin && !$this->faturaModel->usuarioEhDono($faturaId, (int) $usuario['id'])) {
+        // Pagar fatura e uma ACAO financeira -- exige ser o dono de verdade,
+        // acesso de suporte nunca da bypass aqui (so serve para inspecionar).
+        if (!$this->faturaModel->usuarioEhDono($faturaId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 

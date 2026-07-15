@@ -11,7 +11,6 @@ class Transacao extends BaseController
     protected $categoriaModel;
     protected $tagModel;
     protected $cartaoModel;
-    protected $usuarioModel;
 
     public function __construct()
     {
@@ -21,7 +20,6 @@ class Transacao extends BaseController
         $this->categoriaModel = $this->model('Categoria');
         $this->tagModel       = $this->model('Tag');
         $this->cartaoModel    = $this->model('CartaoCredito');
-        $this->usuarioModel   = $this->model('Usuario');
         $this->helper("crud");
     }
 
@@ -35,9 +33,7 @@ class Transacao extends BaseController
     {
         $contaId = (int) $this->request->getAction();
         $usuario = $this->usuarioLogado();
-        $isAdmin = $this->usuarioModel->isAdmin($usuario);
-
-        if (!$this->autorizadoConta($contaId, (int) $usuario['id'], $isAdmin)) {
+        if (!$this->podeVisualizarConta($contaId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 
@@ -81,9 +77,7 @@ class Transacao extends BaseController
         $post    = $this->request->getPost();
         $contaId = (int) ($post['conta_id'] ?? 0);
         $usuario = $this->usuarioLogado();
-        $isAdmin = $this->usuarioModel->isAdmin($usuario);
-
-        if (!$this->autorizadoConta($contaId, (int) $usuario['id'], $isAdmin)) {
+        if (!$this->podeGerenciarConta($contaId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 
@@ -141,9 +135,7 @@ class Transacao extends BaseController
 
         $contaId = (int) $transacao['conta_id'];
         $usuario = $this->usuarioLogado();
-        $isAdmin = $this->usuarioModel->isAdmin($usuario);
-
-        if (!$this->autorizadoConta($contaId, (int) $usuario['id'], $isAdmin)) {
+        if (!$this->podeGerenciarConta($contaId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 
@@ -183,9 +175,7 @@ class Transacao extends BaseController
 
         $contaId = (int) $transacao['conta_id'];
         $usuario = $this->usuarioLogado();
-        $isAdmin = $this->usuarioModel->isAdmin($usuario);
-
-        if (!$this->autorizadoConta($contaId, (int) $usuario['id'], $isAdmin)) {
+        if (!$this->podeGerenciarConta($contaId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 
@@ -221,16 +211,33 @@ class Transacao extends BaseController
     }
 
     /**
-     * autorizadoConta
+     * podeVisualizarConta
+     * Ver o extrato: dono da conta, OU um admin com concessao de suporte
+     * ATIVA e ESPECIFICA para esta conta (ver Admin::suporteAcessar()).
      *
      * @param int $contaId
      * @param int $usuarioId
-     * @param bool $isAdmin
      * @return bool
      */
-    protected function autorizadoConta(int $contaId, int $usuarioId, bool $isAdmin): bool
+    protected function podeVisualizarConta(int $contaId, int $usuarioId): bool
     {
-        return $isAdmin || $this->contaModel->usuarioEhDono($contaId, $usuarioId);
+        return $this->contaModel->usuarioEhDono($contaId, $usuarioId)
+            || $this->temAcessoSuporteAtivo('conta', $contaId);
+    }
+
+    /**
+     * podeGerenciarConta
+     * Lancar, editar categoria ou excluir transacao sao ACOES -- exigem ser
+     * o dono de verdade. Acesso de suporte nunca da bypass aqui, so serve
+     * para inspecionar (ver podeVisualizarConta acima).
+     *
+     * @param int $contaId
+     * @param int $usuarioId
+     * @return bool
+     */
+    protected function podeGerenciarConta(int $contaId, int $usuarioId): bool
+    {
+        return $this->contaModel->usuarioEhDono($contaId, $usuarioId);
     }
 
     /**

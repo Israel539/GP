@@ -19,24 +19,34 @@ class Home extends BaseController
         $contaModel        = $this->model('Conta');
         $planoCompraModel  = $this->model('PlanoCompra');
         $usuarioModel      = $this->model('Usuario');
+        $transacaoModel    = $this->model('Transacao');
 
         $isAdmin = $usuarioModel->isAdmin($usuarioSessao);
 
         $proximosCompromissos = $compromissoModel->proximosPorUsuario($usuarioId, 5);
+        $totalAtrasados       = $compromissoModel->contarAtrasados($usuarioId);
         $projetos             = $projetoModel->listarPorUsuario($usuarioId, $isAdmin);
         $contas               = $contaModel->listarPorUsuario($usuarioId, $isAdmin);
-        $planosCompra         = $planoCompraModel->listarPorUsuario($usuarioId);
+        $totalPlanosCompra    = $planoCompraModel->contarPorUsuario($usuarioId);
+        $resumoMes            = $transacaoModel->resumoMesPorUsuario($usuarioId);
 
         $saldoTotal = array_sum(array_column($contas, 'saldo_atual'));
+
+        $hora = (int) date('G');
+        $saudacao = $hora < 12 ? 'Bom dia' : ($hora < 18 ? 'Boa tarde' : 'Boa noite');
 
         return $this->view("home", [
             'estaLogado'           => true,
             'nome'                 => $usuarioSessao['nome'],
+            'saudacao'             => $saudacao,
             'proximosCompromissos' => $proximosCompromissos,
+            'totalAtrasados'       => $totalAtrasados,
+            'projetosRecentes'     => array_slice($projetos, 0, 3),
             'totalProjetos'        => count($projetos),
             'totalContas'          => count($contas),
-            'totalPlanosCompra'    => count($planosCompra),
+            'totalPlanosCompra'    => $totalPlanosCompra,
             'saldoTotal'           => $saldoTotal,
+            'resumoMes'            => $resumoMes,
         ]);
     }
 

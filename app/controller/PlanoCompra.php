@@ -16,6 +16,59 @@ class PlanoCompra extends BaseController
         $this->usuarioModel = $this->model('Usuario');
     }
 
+    /**
+     * carregarPlanoOuNegar
+     * Centraliza a checagem "o plano existe e pertence a quem esta logado?"
+     * que antes estava duplicada em 7 metodos diferentes. Se autorizado,
+     * devolve o array do plano; se nao, ja registra a mensagem de erro e o
+     * redirect (igual cada metodo fazia antes), e devolve null -- quem
+     * chamar so precisa checar `=== null` e dar `return`.
+     *
+     * @param int $id
+     * @return array|null
+     */
+    private function carregarPlanoOuNegar(int $id): ?array
+    {
+        $usuario = $this->usuarioLogado();
+        $plano = $this->model->buscarPorId($id);
+
+        if (empty($plano) || (int) $plano['usuario_id'] !== (int) $usuario['id']) {
+            http_response_code(403);
+            Session::set('msgError', 'Plano nao encontrado ou sem permissao.');
+            header('Location: /PlanoCompra');
+            return null;
+        }
+
+        return $plano;
+    }
+
+    /**
+     * carregarPlanoVisualizavelOuNegar
+     * Mesma coisa, mas para VISUALIZACAO (ver/editar form) -- aceita tambem
+     * um admin com acesso de suporte ativo e especifico (Admin::suporteAcessar()).
+     * Acoes (atualizar/excluir/restaurar/concluir/cancelar) continuam usando
+     * carregarPlanoOuNegar() acima, sem esse bypass.
+     *
+     * @param int $id
+     * @return array|null
+     */
+    private function carregarPlanoVisualizavelOuNegar(int $id): ?array
+    {
+        $usuario = $this->usuarioLogado();
+        $plano = $this->model->buscarPorId($id);
+
+        $ehDono = !empty($plano) && (int) $plano['usuario_id'] === (int) $usuario['id'];
+
+        if (!$ehDono && !$this->temAcessoSuporteAtivo('plano_compra', $id)) {
+            http_response_code(403);
+            Session::set('msgError', 'Plano nao encontrado ou sem permissao.');
+            header('Location: /PlanoCompra');
+            return null;
+        }
+
+        return $plano;
+    }
+
     public function index()
     {
         $usuario = $this->usuarioLogado();
@@ -47,14 +100,10 @@ class PlanoCompra extends BaseController
     public function editar()
     {
         $planoId = (int) $this->request->getAction();
-        $usuario = $this->usuarioLogado();
 
-        $plano = $this->model->buscarPorId($planoId);
-
-        if (empty($plano) || (int) $plano['usuario_id'] !== (int) $usuario['id']) {
-            http_response_code(403);
-            Session::set('msgError', 'Plano nao encontrado ou sem permissao.');
-            return header('Location: /PlanoCompra');
+        $plano = $this->carregarPlanoVisualizavelOuNegar($planoId);
+        if ($plano === null) {
+            return;
         }
 
         return $this->view('planoCompraForm', ['plano' => $plano]);
@@ -63,7 +112,6 @@ class PlanoCompra extends BaseController
     public function atualizar()
     {
         $dados = $this->request->getPost();
-        $usuario = $this->usuarioLogado();
 
         $id = (int) ($dados['id'] ?? 0);
         if ($id <= 0) {
@@ -71,11 +119,8 @@ class PlanoCompra extends BaseController
             return header('Location: /PlanoCompra');
         }
 
-        $plano = $this->model->buscarPorId($id);
-        if (empty($plano) || (int) $plano['usuario_id'] !== (int) $usuario['id']) {
-            http_response_code(403);
-            Session::set('msgError', 'Plano nao encontrado ou sem permissao.');
-            return header('Location: /PlanoCompra');
+        if ($this->carregarPlanoOuNegar($id) === null) {
+            return;
         }
 
         $dados['valor_total'] = str_replace(',', '.', $dados['valor_total'] ?? '0');
@@ -99,14 +144,9 @@ class PlanoCompra extends BaseController
     public function excluir()
     {
         $planoId = (int) $this->request->getAction();
-        $usuario = $this->usuarioLogado();
 
-        $plano = $this->model->buscarPorId($planoId);
-
-        if (empty($plano) || (int) $plano['usuario_id'] !== (int) $usuario['id']) {
-            http_response_code(403);
-            Session::set('msgError', 'Plano nao encontrado ou sem permissao.');
-            return header('Location: /PlanoCompra');
+        if ($this->carregarPlanoOuNegar($planoId) === null) {
+            return;
         }
 
         $ok = $this->model->deletar($planoId);
@@ -123,14 +163,9 @@ class PlanoCompra extends BaseController
     public function restaurar()
     {
         $planoId = (int) $this->request->getAction();
-        $usuario = $this->usuarioLogado();
 
-        $plano = $this->model->buscarPorId($planoId);
-
-        if (empty($plano) || (int) $plano['usuario_id'] !== (int) $usuario['id']) {
-            http_response_code(403);
-            Session::set('msgError', 'Plano nao encontrado ou sem permissao.');
-            return header('Location: /PlanoCompra');
+        if ($this->carregarPlanoOuNegar($planoId) === null) {
+            return;
         }
 
         $ok = $this->model->restaurar($planoId);
@@ -184,14 +219,10 @@ class PlanoCompra extends BaseController
     public function ver()
     {
         $planoId = (int) $this->request->getAction();
-        $usuario = $this->usuarioLogado();
 
-        $plano = $this->model->buscarPorId($planoId);
-
-        if (empty($plano) || (int) $plano['usuario_id'] !== (int) $usuario['id']) {
-            http_response_code(403);
-            Session::set('msgError', 'Plano de compra nao encontrado ou sem permissao.');
-            return header('Location: /PlanoCompra');
+        $plano = $this->carregarPlanoVisualizavelOuNegar($planoId);
+        if ($plano === null) {
+            return;
         }
 
         return $this->view('planoCompraDetalhe', ['plano' => $plano]);
@@ -200,14 +231,9 @@ class PlanoCompra extends BaseController
     public function concluir()
     {
         $planoId = (int) $this->request->getAction();
-        $usuario = $this->usuarioLogado();
 
-        $plano = $this->model->buscarPorId($planoId);
-
-        if (empty($plano) || (int) $plano['usuario_id'] !== (int) $usuario['id']) {
-            http_response_code(403);
-            Session::set('msgError', 'Plano de compra nao encontrado ou sem permissao.');
-            return header('Location: /PlanoCompra');
+        if ($this->carregarPlanoOuNegar($planoId) === null) {
+            return;
         }
 
         $ok = $this->model->finalizar($planoId);
@@ -224,14 +250,9 @@ class PlanoCompra extends BaseController
     public function cancelar()
     {
         $planoId = (int) $this->request->getAction();
-        $usuario = $this->usuarioLogado();
 
-        $plano = $this->model->buscarPorId($planoId);
-
-        if (empty($plano) || (int) $plano['usuario_id'] !== (int) $usuario['id']) {
-            http_response_code(403);
-            Session::set('msgError', 'Plano de compra nao encontrado ou sem permissao.');
-            return header('Location: /PlanoCompra');
+        if ($this->carregarPlanoOuNegar($planoId) === null) {
+            return;
         }
 
         $ok = $this->model->cancelar($planoId);

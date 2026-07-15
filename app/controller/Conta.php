@@ -7,30 +7,27 @@ use App\Library\Session;
 class Conta extends BaseController
 {
     protected $model;
-    protected $usuarioModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->model        = $this->model('Conta');
-        $this->usuarioModel = $this->model('Usuario');
+        $this->model = $this->model('Conta');
         $this->helper("crud");
     }
 
     /**
      * index
      * Lista as contas do usuario logado, ja com o saldo calculado (RN08).
+     * Admin NAO ve conta/saldo de ninguem aqui -- ver Admin::suporteAcessar().
      *
      * @return void
      */
     public function index()
     {
         $usuario = $this->usuarioLogado();
-        $isAdmin = $this->usuarioModel->isAdmin($usuario);
+        $contas = $this->model->listarPorUsuario((int) $usuario['id']);
 
-        $contas = $this->model->listarPorUsuario((int) $usuario['id'], $isAdmin);
-
-        return $this->view("contas", ['contas' => $contas, 'isAdmin' => $isAdmin]);
+        return $this->view("contas", ['contas' => $contas]);
     }
 
     /**

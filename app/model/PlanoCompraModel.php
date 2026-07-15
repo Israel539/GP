@@ -100,6 +100,19 @@ class PlanoCompraModel extends BaseModel
         return $this->connDb->select($sql, ['id' => $id], 'one');
     }
 
+    // Campos que o USUARIO pode alterar via formulario de edicao. Qualquer
+    // outra chave que vier em $dados (ex: usuario_id, status, excluido_em,
+    // criado_em, id) e ignorada aqui -- essas colunas so podem mudar atraves
+    // dos metodos dedicados (finalizar(), cancelar(), deletar(), restaurar()),
+    // que tem sua propria regra de negocio. Sem essa lista branca, qualquer
+    // campo extra enviado no POST (ainda que nao exista no <form> HTML) virava
+    // uma coluna no SET do UPDATE -- inclusive usuario_id, permitindo shift de
+    // dono do registro.
+    private const CAMPOS_EDITAVEIS = [
+        'nome', 'descricao', 'imagem_url', 'produto_url',
+        'valor_total', 'parcelas_previstas', 'data_prevista_compra',
+    ];
+
     /**
      * atualizar
      * @param int $id
@@ -108,16 +121,18 @@ class PlanoCompraModel extends BaseModel
      */
     public function atualizar(int $id, array $dados): bool
     {
+        $dadosPermitidos = array_intersect_key($dados, array_flip(self::CAMPOS_EDITAVEIS));
+
+        if (empty($dadosPermitidos)) {
+            return false;
+        }
+
         $sets = [];
         $params = ['id' => $id];
 
-        foreach ($dados as $campo => $valor) {
+        foreach ($dadosPermitidos as $campo => $valor) {
             $sets[] = "{$campo} = :{$campo}";
             $params[$campo] = $valor;
-        }
-
-        if (empty($sets)) {
-            return false;
         }
 
         $sql = "UPDATE planos_compra SET " . implode(', ', $sets) . " WHERE id = :id";
@@ -128,13 +143,15 @@ class PlanoCompraModel extends BaseModel
 
     /**
      * deletar
-     * Remove o plano do banco (exclusao definitiva). Use com cautela.
+     * NAO remove a linha do banco -- e um soft-delete: marca status='excluido'
+     * e grava excluido_em, permitindo undo via restaurar() dentro da janela
+     * de RESTORE_WINDOW_HOURS. (O nome do metodo e "deletar" pela API publica
+     * que o Controller usa, mas o comportamento real e o soft-delete abaixo.)
      * @param int $id
      * @return bool
      */
     public function deletar(int $id): bool
     {
-        // soft-delete: marca como 'excluido' e registra timestamp
         $sql = "UPDATE planos_compra SET status = 'excluido', excluido_em = CURRENT_TIMESTAMP WHERE id = :id";
         return $this->connDb->update($sql, ['id' => $id]) !== false;
     }
