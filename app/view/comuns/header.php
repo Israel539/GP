@@ -27,6 +27,7 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             transform-origin: top left;
         }
+
         .plano-img-thumb:hover {
             transform: scale(3.2);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -49,15 +50,15 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
                 <span class="navbar-toggler-icon"></span>
             </button>
             <?php
-    $request = new \App\Library\Request();
-    $controllerAtual = $request->getController();
-    $metodoAtual = $request->getMetodo();
-    $homeAtivo = $controllerAtual === 'Home' && $metodoAtual === 'index' ? 'active' : '';
-    $contatoAtivo = $controllerAtual === 'Contato' || ($controllerAtual === 'Home' && $metodoAtual === 'contato') ? 'active' : '';
-    $financeiroAtivo = $controllerAtual === 'Conta' ? 'active' : '';
-    $comprasAtivo = $controllerAtual === 'PlanoCompra' ? 'active' : '';
-    ?>
-    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            $request = new \App\Library\Request();
+            $controllerAtual = $request->getController();
+            $metodoAtual = $request->getMetodo();
+            $homeAtivo = $controllerAtual === 'Home' && $metodoAtual === 'index' ? 'active' : '';
+            $contatoAtivo = $controllerAtual === 'Contato' || ($controllerAtual === 'Home' && $metodoAtual === 'contato') ? 'active' : '';
+            $financeiroAtivo = $controllerAtual === 'Conta' ? 'active' : '';
+            $comprasAtivo = $controllerAtual === 'PlanoCompra' ? 'active' : '';
+            ?>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                         <a class="nav-link <?= $homeAtivo ?>" href="/Home">Home</a>
@@ -96,7 +97,7 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
                                     <li><a class="dropdown-item" href="/Admin/suporte">Acesso de suporte</a></li>
                                     <li><a class="dropdown-item" href="/Admin/suporteHistorico">Log de auditoria</a></li>
                                     <li><a class="dropdown-item" href="/Admin/contatos">Mensagens de contato</a></li>
-                                <li><a class="dropdown-item" href="/Admin/termos">Termos e Políticas</a></li>
+                                    <li><a class="dropdown-item" href="/Admin/termos">Termos e Políticas</a></li>
                                 </ul>
                             </li>
                         <?php endif; ?>
@@ -113,8 +114,8 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
                         </li>
                     <?php endif; ?>
 
-                    </ul>
-                </div>
+                </ul>
             </div>
+        </div>
         </div>
     </nav>
