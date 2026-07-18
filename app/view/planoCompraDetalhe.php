@@ -1,5 +1,9 @@
 <?php
 /** @var array $plano */
+/** @var array $parcelas */
+/** @var float $valorGuardado */
+/** @var float $valorRestante */
+/** @var float $progresso */
 include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container py-5">

@@ -29,7 +29,33 @@ class BaseController
         header("Expires: 0");
 
         $this->verificarCsrf();
+        $this->verificarInatividade();
         $this->verificarAutenticacao();
+    }
+
+    /**
+     * verificarInatividade
+     * Desloga automaticamente quem ficou parado tempo demais (30 min por
+     * padrao). Isso resolve o problema de verdade de "alguem pega o
+     * computador depois de um tempo e acha a conta logada" -- fechar UMA
+     * aba nunca desloga (todo navegador compartilha sessao entre abas, isso
+     * e comportamento padrao da web, nao um bug), mas ficar parado tempo
+     * demais, sim.
+     *
+     * @return void
+     */
+    protected function verificarInatividade()
+    {
+        $limiteSegundos = 30 * 60; // 30 minutos
+
+        if (Session::get(SESSION_USER_KEY) && isset($_SESSION['ultima_atividade'])) {
+            if ((time() - $_SESSION['ultima_atividade']) > $limiteSegundos) {
+                unset($_SESSION[SESSION_USER_KEY]);
+                Session::set('msgError', 'Sua sessao expirou por inatividade. Faca login novamente.');
+            }
+        }
+
+        $_SESSION['ultima_atividade'] = time();
     }
 
     /**

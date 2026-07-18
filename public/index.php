@@ -1,5 +1,16 @@
 <?php
 
+// Forca o cookie de sessao a ser "de sessao mesmo" (expira quando o
+// navegador fecha de verdade) -- independente do que o php.ini do XAMPP
+// tiver configurado em session.cookie_lifetime. httponly evita que
+// JavaScript malicioso (XSS) leia esse cookie.
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path'     => '/',
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
+
 session_start();
 
 date_default_timezone_set("America/Sao_Paulo");

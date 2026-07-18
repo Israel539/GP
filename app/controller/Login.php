@@ -63,8 +63,8 @@ class Login extends BaseController
                 return header("Location: /Termo");
             }
 
-            // Direcionar o usuário para a lista de projetos (area logada)
-            return header("Location: /Projeto");
+            // Direcionar o usuário para a Home (dashboard) apos login
+            return header("Location: /Home");
             //
 
         } else {
@@ -113,4 +113,4 @@ class Login extends BaseController
             }
         }
     }
-}
+}   
