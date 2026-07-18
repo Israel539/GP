@@ -243,6 +243,21 @@ CREATE TABLE IF NOT EXISTS planos_compra (
     INDEX idx_planos_usuario_status (usuario_id, status)
 ) ENGINE=InnoDB;
 
+-- Cada linha e um deposito/parcela de verdade guardado rumo ao plano (ex:
+-- "guardei R$500 dia 05/07 pra geladeira"). valor_total do plano e a META;
+-- a soma destas linhas e o QUANTO JA FOI GUARDADO ate agora.
+CREATE TABLE IF NOT EXISTS plano_compra_parcelas (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    plano_compra_id INT UNSIGNED NOT NULL,
+    valor           DECIMAL(14,2) NOT NULL,
+    data_pagamento  DATE          NOT NULL,
+    observacao      VARCHAR(255)  DEFAULT NULL,
+    criado_em       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_parcela_plano_compra FOREIGN KEY (plano_compra_id) REFERENCES planos_compra(id) ON DELETE CASCADE,
+    INDEX idx_parcela_plano (plano_compra_id)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS cartoes_credito (
     id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     conta_pagadora_id   INT UNSIGNED NOT NULL COMMENT 'Conta corrente que paga a fatura deste cartão',

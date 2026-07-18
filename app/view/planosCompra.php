@@ -55,13 +55,35 @@ include __DIR__ . '/comuns/header.php'; ?>
             <?php foreach ($planos as $plano): ?>
                 <div class="col-lg-4 col-md-6">
                     <div class="card h-100 shadow-sm">
-                        <?php if (!empty($plano['imagem_url'])): ?>
-                            <img src="<?= htmlspecialchars($plano['imagem_url']) ?>" class="card-img-top plano-img" alt="Imagem do produto">
-                        <?php endif; ?>
                         <div class="card-body d-flex flex-column">
-                            <h5 class="card-title"><?= htmlspecialchars($plano['nome']) ?></h5>
-                            <p class="text-muted mb-2">Valor total previsto: R$ <?= number_format((float) $plano['valor_total'], 2, ',', '.') ?></p>
-                            <p class="mb-2">Parcelas previstas: <?= (int) $plano['parcelas_previstas'] ?></p>
+                            <div class="d-flex align-items-start gap-2 mb-2">
+                                <?php if (!empty($plano['imagem_url'])): ?>
+                                    <img src="<?= htmlspecialchars($plano['imagem_url']) ?>" class="plano-img-thumb flex-shrink-0" alt="Imagem do produto">
+                                <?php endif; ?>
+                                <h5 class="card-title mb-0"><?= htmlspecialchars($plano['nome']) ?></h5>
+                            </div>
+
+                            <?php
+                                $valorGuardado = (float) ($plano['valor_guardado'] ?? 0);
+                                $valorTotal = (float) $plano['valor_total'];
+                                $parcelasPagas = (int) ($plano['parcelas_pagas'] ?? 0);
+                                $progresso = $valorTotal > 0 ? min(100, ($valorGuardado / $valorTotal) * 100) : 0;
+                                $valorRestante = max(0, $valorTotal - $valorGuardado);
+                            ?>
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between small text-muted">
+                                    <span>R$ <?= number_format($valorGuardado, 2, ',', '.') ?> guardado</span>
+                                    <span>Meta R$ <?= number_format($valorTotal, 2, ',', '.') ?></span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" style="width: <?= $progresso ?>%"></div>
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    <?= $parcelasPagas ?> de <?= (int) $plano['parcelas_previstas'] ?> parcela(s)
+                                    &middot; Faltam R$ <?= number_format($valorRestante, 2, ',', '.') ?>
+                                </div>
+                            </div>
+
                             <?php if (!empty($plano['produto_url'])): ?>
                                 <p class="mb-2"><a href="<?= htmlspecialchars($plano['produto_url']) ?>" target="_blank">Ver produto</a></p>
                             <?php endif; ?>

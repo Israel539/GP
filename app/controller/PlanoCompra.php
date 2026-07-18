@@ -8,12 +8,14 @@ class PlanoCompra extends BaseController
 {
     protected $model;
     protected $usuarioModel;
+    protected $parcelaModel;
 
     public function __construct()
     {
         parent::__construct();
         $this->model = $this->model('PlanoCompra');
         $this->usuarioModel = $this->model('Usuario');
+        $this->parcelaModel = $this->model('ParcelaPlanoCompra');
     }
 
     /**
@@ -225,7 +227,78 @@ class PlanoCompra extends BaseController
             return;
         }
 
-        return $this->view('planoCompraDetalhe', ['plano' => $plano]);
+        $parcelas = $this->parcelaModel->listarPorPlano($planoId);
+        $valorGuardado = $this->parcelaModel->somarPorPlano($planoId);
+        $valorTotal = (float) $plano['valor_total'];
+        $progresso = $valorTotal > 0 ? min(100, ($valorGuardado / $valorTotal) * 100) : 0;
+
+        return $this->view('planoCompraDetalhe', [
+            'plano'           => $plano,
+            'parcelas'        => $parcelas,
+            'valorGuardado'   => $valorGuardado,
+            'valorRestante'   => max(0, $valorTotal - $valorGuardado),
+            'progresso'       => $progresso,
+        ]);
+    }
+
+    /**
+     * adicionarParcela
+     * URL: POST /PlanoCompra/adicionarParcela/{planoId}
+     * Registra um deposito/parcela guardado rumo a meta. So o dono do plano
+     * pode fazer isso (acao, nao aceita bypass de acesso de suporte).
+     *
+     * @return void
+     */
+    public function adicionarParcela()
+    {
+        $planoId = (int) $this->request->getAction();
+
+        if ($this->carregarPlanoOuNegar($planoId) === null) {
+            return;
+        }
+
+        $dados = $this->request->getPost();
+        $dados['valor'] = str_replace(',', '.', $dados['valor'] ?? '0');
+
+        if (!$this->parcelaModel->validate($dados)) {
+            Session::set('msgError', 'Verifique os campos destacados e tente novamente.');
+            return header('Location: /PlanoCompra/ver/' . $planoId);
+        }
+
+        $this->parcelaModel->criar($dados, $planoId);
+        $this->model->atualizarProgresso($planoId);
+
+        Session::set('msgSucesso', 'Parcela adicionada com sucesso.');
+        return header('Location: /PlanoCompra/ver/' . $planoId);
+    }
+
+    /**
+     * excluirParcela
+     * URL: POST /PlanoCompra/excluirParcela/{parcelaId}
+     *
+     * @return void
+     */
+    public function excluirParcela()
+    {
+        $parcelaId = (int) $this->request->getAction();
+        $parcela = $this->parcelaModel->buscarPorId($parcelaId);
+
+        if (count($parcela) === 0) {
+            Session::set('msgError', 'Parcela nao encontrada.');
+            return header('Location: /PlanoCompra');
+        }
+
+        $planoId = (int) $parcela['plano_compra_id'];
+
+        if ($this->carregarPlanoOuNegar($planoId) === null) {
+            return;
+        }
+
+        $this->parcelaModel->excluir($parcelaId);
+        $this->model->atualizarProgresso($planoId);
+
+        Session::set('msgSucesso', 'Parcela removida.');
+        return header('Location: /PlanoCompra/ver/' . $planoId);
     }
 
     public function concluir()

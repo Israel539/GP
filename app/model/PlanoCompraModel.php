@@ -61,10 +61,13 @@ class PlanoCompraModel extends BaseModel
         $limit = max(1, (int) $perPage);
         $offset = max(0, (int) $offset);
 
-        $sql = "SELECT * FROM planos_compra
-            WHERE {$where}
-            ORDER BY status ASC, atualizado_em DESC
-            LIMIT {$limit} OFFSET {$offset}";
+        $sql = "SELECT pc.*,
+                    COALESCE((SELECT SUM(valor) FROM plano_compra_parcelas WHERE plano_compra_id = pc.id), 0) AS valor_guardado,
+                    (SELECT COUNT(*) FROM plano_compra_parcelas WHERE plano_compra_id = pc.id) AS parcelas_pagas
+                FROM planos_compra pc
+                WHERE {$where}
+                ORDER BY status ASC, atualizado_em DESC
+                LIMIT {$limit} OFFSET {$offset}";
 
         return $this->connDb->select($sql, $params);
     }
@@ -220,5 +223,36 @@ class PlanoCompraModel extends BaseModel
     {
         $sql = "UPDATE planos_compra SET status = 'cancelado' WHERE id = :id";
         return $this->connDb->update($sql, ['id' => $id]) > 0;
+    }
+
+    /**
+     * atualizarProgresso
+     * Chamado toda vez que uma parcela e adicionada/removida. Compara o
+     * quanto ja foi guardado (soma de plano_compra_parcelas) com a meta
+     * (valor_total) e transiciona o status automaticamente:
+     *   planejamento -> em_andamento (assim que a 1a parcela entra)
+     *   em_andamento -> concluido (quando o guardado atinge a meta)
+     * Nao mexe em planos ja cancelados/excluidos -- essa automacao nao deve
+     * reviver um plano que o usuario descartou de proposito.
+     *
+     * @param int $id
+     * @return void
+     */
+    public function atualizarProgresso(int $id): void
+    {
+        $plano = $this->buscarPorId($id);
+
+        if (count($plano) === 0 || in_array($plano['status'], ['cancelado', 'excluido'], true)) {
+            return;
+        }
+
+        $sql = "SELECT COALESCE(SUM(valor), 0) AS total FROM plano_compra_parcelas WHERE plano_compra_id = :id";
+        $guardado = (float) $this->connDb->select($sql, ['id' => $id], 'one')['total'];
+
+        if ($guardado >= (float) $plano['valor_total'] && $plano['status'] !== 'concluido') {
+            $this->finalizar($id);
+        } elseif ($guardado > 0 && $plano['status'] === 'planejamento') {
+            $this->connDb->update("UPDATE planos_compra SET status = 'em_andamento' WHERE id = :id", ['id' => $id]);
+        }
     }
 }

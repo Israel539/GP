@@ -14,6 +14,26 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        /* Imagem do produto em Planos de Compra -- um selo pequeno, nao um
+           banner gigante. No hover, aumenta um pouco (nao tela cheia) pra
+           dar uma espiada melhor na imagem sem estourar o layout. */
+        .plano-img-thumb {
+            width: 64px;
+            height: 64px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: zoom-in;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transform-origin: top left;
+        }
+        .plano-img-thumb:hover {
+            transform: scale(3.2);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            position: relative;
+            z-index: 20;
+        }
+    </style>
 </head>
 
 <body>
