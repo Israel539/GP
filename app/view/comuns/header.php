@@ -13,6 +13,7 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
     <link rel="stylesheet" href="<?= baseUrl() ?>style.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 </head>
 
 <body>
@@ -72,6 +73,8 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
                                     <li><a class="dropdown-item" href="/Admin">Painel</a></li>
                                     <li><a class="dropdown-item" href="/Admin/usuarios">Usuarios</a></li>
                                     <li><a class="dropdown-item" href="/Admin/projetos">Todos os projetos</a></li>
+                                    <li><a class="dropdown-item" href="/Admin/suporte">Acesso de suporte</a></li>
+                                    <li><a class="dropdown-item" href="/Admin/suporteHistorico">Log de auditoria</a></li>
                                     <li><a class="dropdown-item" href="/Admin/contatos">Mensagens de contato</a></li>
                                 <li><a class="dropdown-item" href="/Admin/termos">Termos e Políticas</a></li>
                                 </ul>

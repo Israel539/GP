@@ -5,9 +5,6 @@
     <div class="row mb-4">
         <div class="col-8">
             <h2>Meus Projetos</h2>
-            <?php if (!empty($isAdmin)): ?>
-                <span class="badge bg-warning text-dark">Visao de administrador: todos os projetos do sistema</span>
-            <?php endif; ?>
         </div>
         <div class="col-4 text-end">
             <a href="/Projeto/form" class="btn btn-primary">+ Novo projeto</a>

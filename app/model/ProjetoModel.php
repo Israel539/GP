@@ -68,6 +68,20 @@ class ProjetoModel extends BaseModel
     }
 
     /**
+     * contarTodos
+     * Estatistica agregada para o painel do Admin -- so o numero, nunca a
+     * lista com nomes/donos (isso exigiria o fluxo de Admin::suporteAcessar()).
+     *
+     * @return int
+     */
+    public function contarTodos(): int
+    {
+        $sql = "SELECT COUNT(*) AS total FROM projetos";
+        $linha = $this->connDb->select($sql, [], 'one');
+        return (int) ($linha['total'] ?? 0);
+    }
+
+    /**
      * buscarPorId
      *
      * @param int $id
@@ -82,25 +96,14 @@ class ProjetoModel extends BaseModel
     /**
      * listarPorUsuario
      * Lista os projetos que o usuário participa (dono OU colaborador).
-     * Se $isAdmin = true, ignora o vínculo e lista TODOS os projetos do
-     * sistema -- é assim que o painel administrativo enxerga tudo sem
-     * precisar estar em cada projeto.
+     * NAO existe mais bypass de admin aqui -- ver Admin::suporteAcessar()
+     * para o fluxo auditado de acesso pontual a um projeto especifico.
      *
      * @param int $usuarioId
-     * @param bool $isAdmin
      * @return array
      */
-    public function listarPorUsuario(int $usuarioId, bool $isAdmin = false): array
+    public function listarPorUsuario(int $usuarioId): array
     {
-        if ($isAdmin) {
-            $sql = "SELECT p.*, u.nome AS dono_nome
-                    FROM projetos p
-                    INNER JOIN usuarios u ON u.id = p.dono_id
-                    ORDER BY p.atualizado_em DESC, p.id DESC";
-
-            return $this->connDb->select($sql);
-        }
-
         $sql = "SELECT p.*, pu.papel
                 FROM projetos p
                 INNER JOIN projeto_usuarios pu ON pu.projeto_id = p.id

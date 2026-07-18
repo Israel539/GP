@@ -52,11 +52,12 @@ class Admin extends BaseController
     public function index()
     {
         $usuarios = $this->usuarioModel->listarTodos();
-        $projetos = $this->projetoModel->listarPorUsuario(0, true);
+        $contaModel = $this->model('Conta');
 
         return $this->view("adminIndex", [
             'totalUsuarios' => count($usuarios),
-            'totalProjetos' => count($projetos),
+            'totalProjetos' => $this->projetoModel->contarTodos(),
+            'totalContas'   => $contaModel->contarTodas(),
         ]);
     }
 
@@ -149,15 +150,87 @@ class Admin extends BaseController
 
     /**
      * projetos
-     * Visao geral de todos os projetos do sistema (independente de quem participa).
+     * Antes mostrava nome/dono de TODOS os projetos do sistema -- isso violava
+     * a privacidade de quem usa o app (admin nao precisa saber o nome do
+     * projeto de ninguem). Agora so mostra o total agregado. Para inspecionar
+     * um projeto especifico, use o fluxo auditado em suporte()/suporteAcessar().
      *
      * @return void
      */
     public function projetos()
     {
-        $projetos = $this->projetoModel->listarPorUsuario(0, true);
+        return $this->view("adminProjetos", ['totalProjetos' => $this->projetoModel->contarTodos()]);
+    }
 
-        return $this->view("adminProjetos", ['projetos' => $projetos]);
+    /**
+     * suporte
+     * Formulario para o admin pedir acesso pontual e auditado a um recurso
+     * privado especifico (projeto, conta, cartao, fatura, compromisso ou
+     * plano de compra), justificando o motivo.
+     *
+     * @return void
+     */
+    public function suporte()
+    {
+        return $this->view('adminSuporteForm');
+    }
+
+    /**
+     * suporteAcessar
+     * Grava a justificativa no log de auditoria (permanente), concede acesso
+     * por tempo limitado (15min por padrao) guardado na sessao, e ja
+     * redireciona direto pro recurso.
+     *
+     * @return void
+     */
+    public function suporteAcessar()
+    {
+        $post = $this->request->getPost();
+        $admin = $this->usuarioLogado();
+
+        $tipoRecurso = $post['tipo_recurso'] ?? '';
+        $recursoId = (int) ($post['recurso_id'] ?? 0);
+        $motivo = trim($post['motivo'] ?? '');
+
+        $logModel = $this->model('LogAcessoSuporte');
+        $resultado = $logModel->registrar((int) $admin['id'], $tipoRecurso, $recursoId, $motivo);
+
+        if (!$resultado['ok']) {
+            Session::set('msgError', $resultado['erro']);
+            return header('Location: /Admin/suporte');
+        }
+
+        Session::set('acessoSuporte', [
+            'tipo_recurso' => $tipoRecurso,
+            'recurso_id'   => $recursoId,
+            'expira_em'    => $resultado['expiraEm'],
+        ]);
+
+        Session::set('msgSucesso', 'Acesso de suporte concedido por 15 minutos. Essa acao foi registrada no log de auditoria.');
+
+        $rotas = [
+            'projeto'      => "/Projeto/kanban/{$recursoId}",
+            'conta'        => "/Transacao/extrato/{$recursoId}",
+            'cartao'       => "/Cartao/faturas/{$recursoId}",
+            'fatura'       => "/Cartao/faturaDetalhe/{$recursoId}",
+            'compromisso'  => "/Agenda/form/{$recursoId}",
+            'plano_compra' => "/PlanoCompra/ver/{$recursoId}",
+        ];
+
+        return header('Location: ' . ($rotas[$tipoRecurso] ?? '/Admin'));
+    }
+
+    /**
+     * suporteHistorico
+     * Transparencia: todo acesso de suporte ja concedido, por quem, a que
+     * recurso, e o motivo declarado.
+     *
+     * @return void
+     */
+    public function suporteHistorico()
+    {
+        $logModel = $this->model('LogAcessoSuporte');
+        return $this->view('adminSuporteHistorico', ['historico' => $logModel->listarHistorico()]);
     }
 
     /**

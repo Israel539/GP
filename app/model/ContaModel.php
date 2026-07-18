@@ -45,24 +45,14 @@ class ContaModel extends BaseModel
     /**
      * listarPorUsuario
      * RN08: cada linha ja vem com o saldo atual calculado (vw_saldo_contas),
-     * nunca de uma coluna armazenada.
+     * nunca de uma coluna armazenada. NAO existe mais bypass de admin aqui --
+     * ver Admin::suporteAcessar() para o fluxo auditado de acesso pontual.
      *
      * @param int $usuarioId
-     * @param bool $isAdmin
      * @return array
      */
-    public function listarPorUsuario(int $usuarioId, bool $isAdmin = false): array
+    public function listarPorUsuario(int $usuarioId): array
     {
-        if ($isAdmin) {
-            $sql = "SELECT c.*, v.saldo_atual, u.nome AS dono_nome
-                    FROM contas c
-                    INNER JOIN vw_saldo_contas v ON v.conta_id = c.id
-                    INNER JOIN usuarios u ON u.id = c.usuario_id
-                    ORDER BY u.nome ASC, c.nome ASC";
-
-            return $this->connDb->select($sql);
-        }
-
         $sql = "SELECT c.*, v.saldo_atual
                 FROM contas c
                 INNER JOIN vw_saldo_contas v ON v.conta_id = c.id
@@ -70,6 +60,20 @@ class ContaModel extends BaseModel
                 ORDER BY c.nome ASC";
 
         return $this->connDb->select($sql, ['usuario_id' => $usuarioId]);
+    }
+
+    /**
+     * contarTodas
+     * Estatistica agregada para o painel do Admin -- so o numero de contas,
+     * nunca nomes ou saldos individuais.
+     *
+     * @return int
+     */
+    public function contarTodas(): int
+    {
+        $sql = "SELECT COUNT(*) AS total FROM contas";
+        $linha = $this->connDb->select($sql, [], 'one');
+        return (int) ($linha['total'] ?? 0);
     }
 
     /**

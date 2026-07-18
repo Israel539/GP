@@ -178,6 +178,38 @@ class TransacaoModel extends BaseModel
     }
 
     /**
+     * resumoMesPorUsuario
+     * Usado no dashboard da Home -- soma receitas e despesas confirmadas do
+     * mes corrente, em TODAS as contas do usuario (JOIN, ja que transacoes
+     * nao guarda usuario_id direto). Inclui transacoes de qualquer
+     * modalidade (mesmo credito) -- diferente da RN08/vw_saldo_contas, aqui
+     * a ideia e mostrar o fluxo de gasto do mes, nao o saldo em caixa.
+     *
+     * @param int $usuarioId
+     * @return array ['receitas' => float, 'despesas' => float]
+     */
+    public function resumoMesPorUsuario(int $usuarioId): array
+    {
+        $sql = "SELECT t.tipo, COALESCE(SUM(t.valor), 0) AS total
+                FROM transacoes t
+                INNER JOIN contas c ON c.id = t.conta_id
+                WHERE c.usuario_id = :usuario_id
+                  AND t.status = 'confirmada'
+                  AND MONTH(t.data_fato_gerador) = MONTH(CURDATE())
+                  AND YEAR(t.data_fato_gerador) = YEAR(CURDATE())
+                GROUP BY t.tipo";
+
+        $linhas = $this->connDb->select($sql, ['usuario_id' => $usuarioId]);
+
+        $resumo = ['receitas' => 0.0, 'despesas' => 0.0];
+        foreach ($linhas as $linha) {
+            $resumo[$linha['tipo'] === 'receita' ? 'receitas' : 'despesas'] = (float) $linha['total'];
+        }
+
+        return $resumo;
+    }
+
+    /**
      * listarPorFatura
      * Transacoes de credito que compoe uma fatura especifica.
      *

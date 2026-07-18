@@ -233,6 +233,26 @@ class CompromissoModel extends BaseModel
     }
 
     /**
+     * contarAtrasados
+     * Usado no dashboard da Home -- RN06 (mesmo espirito do "Atrasado" das
+     * tarefas de projeto, aqui aplicado a compromissos): pendente + prazo
+     * final ja passou.
+     *
+     * @param int $usuarioId
+     * @return int
+     */
+    public function contarAtrasados(int $usuarioId): int
+    {
+        $sql = "SELECT COUNT(*) AS total FROM compromissos
+                WHERE usuario_id = :usuario_id
+                  AND status = :status
+                  AND data_fim < NOW()";
+
+        $linha = $this->connDb->select($sql, ['usuario_id' => $usuarioId, 'status' => self::STATUS_PENDENTE], 'one');
+        return (int) ($linha['total'] ?? 0);
+    }
+
+    /**
      * concluir
      *
      * @param int $id

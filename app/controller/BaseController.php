@@ -118,6 +118,40 @@ class BaseController
     }
 
     /**
+     * temAcessoSuporteAtivo
+     * Admin NAO tem bypass automatico para recursos privados de outros
+     * usuarios (projeto, conta, cartao, compromisso, plano_compra). O unico
+     * jeito de acessar e passando por Admin::suporteAcessar(), que exige
+     * justificativa, grava no log_acesso_suporte permanentemente, e concede
+     * uma janela curta guardada na sessao -- e essa janela que este metodo
+     * confere. Sem essa concessao explicita, o acesso e negado como para
+     * qualquer outro usuario que nao seja dono do recurso.
+     *
+     * @param string $tipoRecurso 'projeto'|'conta'|'cartao'|'compromisso'|'plano_compra'
+     * @param int $recursoId
+     * @return bool
+     */
+    protected function temAcessoSuporteAtivo(string $tipoRecurso, int $recursoId): bool
+    {
+        $concessao = Session::get('acessoSuporte');
+
+        if (!is_array($concessao)) {
+            return false;
+        }
+
+        if (($concessao['tipo_recurso'] ?? null) !== $tipoRecurso || (int) ($concessao['recurso_id'] ?? 0) !== $recursoId) {
+            return false;
+        }
+
+        if (strtotime($concessao['expira_em']) < time()) {
+            Session::destroy('acessoSuporte');
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * model
      *
      * @param string $nomeModel

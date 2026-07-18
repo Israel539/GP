@@ -1,35 +1,41 @@
-<?php 
+<?php
+    // Carrega o .env (se existir) para dentro de $_ENV/getenv() antes de
+    // definir qualquer constante -- e por isso que public/index.php agora
+    // exige o vendor/autoload.php ANTES deste arquivo (Env e uma classe
+    // autoloadada via PSR-4).
+    \App\Library\Env::carregar(__DIR__ . '/../../.env');
+
     //url base da aplicação
-    defined("BASEURL") || define("BASEURL", "http://gp/");
+    defined("BASEURL") || define("BASEURL", \App\Library\Env::get('BASEURL', 'http://gp/'));
 
     //DEFINE AS CONFIGURAÇÕES PARA CESSAR A BASE DE DADOS
     defined("DB_CONF_CONEXAO") || define("DB_CONF_CONEXAO",[
-        "DB_DRIVE" => "mysql",
-        "DB_HOST" => "localhost",
-        "DB_PORT" => 3306,
-        "DB_USER" => "root",
-        'DB_PSW' => '',
-        'DB_BDADOS' => 'gpdb'
+        "DB_DRIVE" => \App\Library\Env::get('DB_DRIVE', 'mysql'),
+        "DB_HOST" => \App\Library\Env::get('DB_HOST', 'localhost'),
+        "DB_PORT" => (int) \App\Library\Env::get('DB_PORT', 3306),
+        "DB_USER" => \App\Library\Env::get('DB_USER', 'root'),
+        'DB_PSW' => \App\Library\Env::get('DB_PSW', ''),
+        'DB_BDADOS' => \App\Library\Env::get('DB_BDADOS', 'gpdb')
     ]);
 
     // ------------------------------------------------------------------
     // ENVIO DE E-MAIL (SMTP)
     // ------------------------------------------------------------------
-    // Para Gmail: MAIL_HOST = smtp.gmail.com, MAIL_PORT = 587,
-    // MAIL_SMTPSECURE = 'tls', MAIL_USER = seu e-mail completo,
-    // MAIL_SENHA = uma "Senha de App" gerada na Conta Google (NAO a senha normal).
+    // Os valores reais (usuario/senha) agora vem do .env, nunca ficam
+    // escritos aqui no codigo-fonte (que pode ir pro Git). Ver .env.example
+    // para o que precisa preencher.
     //
     // Se MAIL_USER ficar vazio, o Mailer nao tenta enviar nada e so registra
     // um aviso no error_log -- assim quem ainda nao configurou SMTP consegue
     // desenvolver o resto do sistema sem o app quebrar por causa disso.
     defined("MAIL_CONF") || define("MAIL_CONF", [
-        "MAIL_HOST"       => "smtp.gmail.com",
-        "MAIL_PORT"       => 587,
-        "MAIL_SMTPSECURE" => "tls",
-        "MAIL_SMTP_AUTH"  => true,
-        "MAIL_USER"       => "uussuarioladiesman217@gmail.com",
-        "MAIL_SENHA"      => "grfafrwclprdoiqw",
-        "MAIL_NOME"       => "Projeto GP",
+        "MAIL_HOST"       => \App\Library\Env::get('MAIL_HOST', 'smtp.gmail.com'),
+        "MAIL_PORT"       => (int) \App\Library\Env::get('MAIL_PORT', 587),
+        "MAIL_SMTPSECURE" => \App\Library\Env::get('MAIL_SMTPSECURE', 'tls'),
+        "MAIL_SMTP_AUTH"  => filter_var(\App\Library\Env::get('MAIL_SMTP_AUTH', true), FILTER_VALIDATE_BOOLEAN),
+        "MAIL_USER"       => \App\Library\Env::get('MAIL_USER', ''),
+        "MAIL_SENHA"      => \App\Library\Env::get('MAIL_SENHA', ''),
+        "MAIL_NOME"       => \App\Library\Env::get('MAIL_NOME', 'Projeto GP'),
     ]);
 
     // ------------------------------------------------------------------

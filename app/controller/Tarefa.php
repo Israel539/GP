@@ -8,14 +8,12 @@ class Tarefa extends BaseController
 {
     protected $model;
     protected $projetoModel;
-    protected $usuarioModel;
 
     public function __construct()
     {
         parent::__construct();
         $this->model        = $this->model('Tarefa');
         $this->projetoModel = $this->model('Projeto');
-        $this->usuarioModel = $this->model('Usuario');
     }
 
     /**
@@ -29,9 +27,7 @@ class Tarefa extends BaseController
         $post      = $this->request->getPost();
         $projetoId = (int) ($post['projeto_id'] ?? 0);
         $usuario   = $this->usuarioLogado();
-        $isAdmin   = $this->usuarioModel->isAdmin($usuario);
-
-        if (!$this->autorizado($projetoId, (int) $usuario['id'], $isAdmin)) {
+        if (!$this->autorizado($projetoId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 
@@ -73,9 +69,7 @@ class Tarefa extends BaseController
 
         $projetoId = (int) $tarefa['projeto_id'];
         $usuario   = $this->usuarioLogado();
-        $isAdmin   = $this->usuarioModel->isAdmin($usuario);
-
-        if (!$this->autorizado($projetoId, (int) $usuario['id'], $isAdmin)) {
+        if (!$this->autorizado($projetoId, (int) $usuario['id'])) {
             return $this->negarAcesso();
         }
 
@@ -90,15 +84,17 @@ class Tarefa extends BaseController
 
     /**
      * autorizado
+     * Criar/mover tarefa e uma ACAO -- exige participacao de verdade no
+     * projeto. Acesso de suporte (Admin::suporteAcessar()) nunca da bypass
+     * aqui, so serve para inspecionar (ver Projeto::podeVisualizar()).
      *
      * @param int $projetoId
      * @param int $usuarioId
-     * @param bool $isAdmin
      * @return bool
      */
-    protected function autorizado(int $projetoId, int $usuarioId, bool $isAdmin): bool
+    protected function autorizado(int $projetoId, int $usuarioId): bool
     {
-        return $isAdmin || $this->projetoModel->usuarioParticipa($projetoId, $usuarioId);
+        return $this->projetoModel->usuarioParticipa($projetoId, $usuarioId);
     }
 
     /**
