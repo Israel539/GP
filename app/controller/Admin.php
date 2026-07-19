@@ -149,6 +149,57 @@ class Admin extends BaseController
     }
 
     /**
+     * usuarioRecursos
+     * URL: /Admin/usuarioRecursos/{usuarioId}
+     * Mostra SO os IDs dos recursos de um usuario (projeto, conta, cartao,
+     * compromisso, plano de compra) -- nunca nome, saldo ou conteudo. Serve
+     * para o admin achar o ID certo antes de pedir acesso de suporte
+     * (Admin::suporte()), sem precisar "espiar" o conteudo pra descobrir.
+     *
+     * @return void
+     */
+    public function usuarioRecursos()
+    {
+        $usuarioId = (int) $this->request->getAction();
+        $usuarioAlvo = $this->usuarioModel->buscarPorId($usuarioId);
+
+        if (count($usuarioAlvo) === 0) {
+            Session::set('msgError', 'Usuario nao encontrado.');
+            return header('Location: /Admin/usuarios');
+        }
+
+        $contaModel = $this->model('Conta');
+        $cartaoModel = $this->model('CartaoCredito');
+        $compromissoModel = $this->model('Compromisso');
+        $planoCompraModel = $this->model('PlanoCompra');
+
+        // So id + status/data -- nunca nome, descricao, saldo ou titulo.
+        $projetos = array_map(fn($p) => ['id' => $p['id'], 'status' => $p['status'], 'papel' => $p['papel']],
+            $this->projetoModel->listarPorUsuario($usuarioId));
+
+        $contas = array_map(fn($c) => ['id' => $c['id'], 'tipo' => $c['tipo']],
+            $contaModel->listarPorUsuario($usuarioId));
+
+        $cartoes = array_map(fn($c) => ['id' => $c['id']],
+            $cartaoModel->listarPorUsuario($usuarioId));
+
+        $compromissos = array_map(fn($c) => ['id' => $c['id'], 'tipo' => $c['tipo'], 'status' => $c['status']],
+            $compromissoModel->listarPorUsuario($usuarioId, 'todos'));
+
+        $planosCompra = array_map(fn($p) => ['id' => $p['id'], 'status' => $p['status']],
+            $planoCompraModel->listarPorUsuario($usuarioId, '', 1, 200, true));
+
+        return $this->view('adminUsuarioRecursos', [
+            'usuarioAlvo'  => $usuarioAlvo,
+            'projetos'     => $projetos,
+            'contas'       => $contas,
+            'cartoes'      => $cartoes,
+            'compromissos' => $compromissos,
+            'planosCompra' => $planosCompra,
+        ]);
+    }
+
+    /**
      * projetos
      * Antes mostrava nome/dono de TODOS os projetos do sistema -- isso violava
      * a privacidade de quem usa o app (admin nao precisa saber o nome do

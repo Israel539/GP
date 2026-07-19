@@ -79,6 +79,9 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
                             <a class="nav-link <?= $financeiroAtivo ?>" href="/Conta">Financeiro</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="/Categoria">Categorias</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link <?= $comprasAtivo ?>" href="/PlanoCompra">Compras</a>
                         </li>
                         <li class="nav-item">

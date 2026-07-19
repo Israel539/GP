@@ -1,4 +1,7 @@
-<?php include __DIR__ . '/comuns/header.php'; ?>
+<?php
+$tipoPreenchido = $_GET['tipo_recurso'] ?? '';
+$idPreenchido = $_GET['recurso_id'] ?? '';
+include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container py-5">
     <div class="row justify-content-center">
@@ -8,6 +11,7 @@
                 Use isso só quando um usuário pedir ajuda com um problema específico.
                 O acesso é registrado permanentemente no <a href="/Admin/suporteHistorico">log de auditoria</a>,
                 vale só para o recurso informado, e expira em 15 minutos.
+                Não sabe o ID? <a href="/Admin/usuarios">Veja os recursos de um usuário primeiro</a>.
             </p>
 
             <?= mensagens() ?>
@@ -20,18 +24,19 @@
                         <div class="mb-3">
                             <label class="form-label">Tipo de recurso</label>
                             <select name="tipo_recurso" class="form-select" required>
-                                <option value="projeto">Projeto (kanban)</option>
-                                <option value="conta">Conta (extrato)</option>
-                                <option value="cartao">Cartão (faturas)</option>
-                                <option value="fatura">Fatura (detalhe)</option>
-                                <option value="compromisso">Compromisso (agenda)</option>
-                                <option value="plano_compra">Plano de compra</option>
+                                <option value="projeto" <?= $tipoPreenchido === 'projeto' ? 'selected' : '' ?>>Projeto (kanban)</option>
+                                <option value="conta" <?= $tipoPreenchido === 'conta' ? 'selected' : '' ?>>Conta (extrato)</option>
+                                <option value="cartao" <?= $tipoPreenchido === 'cartao' ? 'selected' : '' ?>>Cartão (faturas)</option>
+                                <option value="fatura" <?= $tipoPreenchido === 'fatura' ? 'selected' : '' ?>>Fatura (detalhe)</option>
+                                <option value="compromisso" <?= $tipoPreenchido === 'compromisso' ? 'selected' : '' ?>>Compromisso (agenda)</option>
+                                <option value="plano_compra" <?= $tipoPreenchido === 'plano_compra' ? 'selected' : '' ?>>Plano de compra</option>
                             </select>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">ID do recurso</label>
-                            <input type="number" name="recurso_id" class="form-control" required min="1">
+                            <input type="number" name="recurso_id" class="form-control" required min="1"
+                                value="<?= htmlspecialchars((string) $idPreenchido) ?>">
                         </div>
 
                         <div class="mb-3">

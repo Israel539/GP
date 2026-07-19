@@ -83,7 +83,7 @@
                         </div>
 
                         <div class="mb-2">
-                            <label class="form-label small">Categoria</label>
+                            <label class="form-label small">Categoria <a href="/Categoria" class="small">(gerenciar)</a></label>
                             <select name="categoria_id" class="form-select form-select-sm">
                                 <option value="">-- sem categoria --</option>
                                 <?php foreach ($categorias as $cat): ?>

@@ -18,7 +18,7 @@ class Termo extends BaseController
         $termos = $termoModel->buscarAtivosNaoAceitos((int) $usuario['id']);
 
         if (empty($termos)) {
-            return header('Location: /Projeto');
+            return header('Location: /Home');
         }
 
         return $this->view('termoAceite', ['termos' => $termos]);
@@ -54,7 +54,7 @@ class Termo extends BaseController
 
         if ($aceitos > 0) {
             Session::set('msgSucesso', 'Aceite registrado com sucesso.');
-            return header('Location: /Projeto');
+            return header('Location: /Home');
         }
 
         Session::set('msgError', 'Não foi possível registrar o aceite. Tente novamente.');

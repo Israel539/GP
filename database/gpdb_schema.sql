@@ -295,6 +295,40 @@ CREATE TABLE IF NOT EXISTS categorias (
     CONSTRAINT fk_categoria_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Categorias padrao do sistema (usuario_id NULL -- visiveis a todo mundo).
+-- Cada INSERT so roda se ainda nao existir NENHUMA categoria de sistema --
+-- assim, rodar o schema de novo num banco que ja tem dados nao duplica nada.
+INSERT INTO categorias (usuario_id, nome, tipo, cor)
+    SELECT NULL, 'Salário', 'receita', '#198754'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id IS NULL);
+INSERT INTO categorias (usuario_id, nome, tipo, cor)
+    SELECT NULL, 'Outras receitas', 'receita', '#20c997'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id IS NULL AND nome = 'Outras receitas');
+INSERT INTO categorias (usuario_id, nome, tipo, cor)
+    SELECT NULL, 'Alimentação', 'despesa', '#fd7e14'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id IS NULL AND nome = 'Alimentação');
+INSERT INTO categorias (usuario_id, nome, tipo, cor)
+    SELECT NULL, 'Transporte', 'despesa', '#6f42c1'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id IS NULL AND nome = 'Transporte');
+INSERT INTO categorias (usuario_id, nome, tipo, cor)
+    SELECT NULL, 'Moradia', 'despesa', '#0d6efd'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id IS NULL AND nome = 'Moradia');
+INSERT INTO categorias (usuario_id, nome, tipo, cor)
+    SELECT NULL, 'Saúde', 'despesa', '#dc3545'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id IS NULL AND nome = 'Saúde');
+INSERT INTO categorias (usuario_id, nome, tipo, cor)
+    SELECT NULL, 'Lazer', 'despesa', '#d63384'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id IS NULL AND nome = 'Lazer');
+INSERT INTO categorias (usuario_id, nome, tipo, cor)
+    SELECT NULL, 'Educação', 'despesa', '#0dcaf0'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id IS NULL AND nome = 'Educação');
+INSERT INTO categorias (usuario_id, nome, tipo, cor)
+    SELECT NULL, 'Compras', 'despesa', '#ffc107'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id IS NULL AND nome = 'Compras');
+INSERT INTO categorias (usuario_id, nome, tipo, cor)
+    SELECT NULL, 'Outras despesas', 'despesa', '#6c757d'
+    WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id IS NULL AND nome = 'Outras despesas');
+
 CREATE TABLE IF NOT EXISTS tags (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     usuario_id      INT UNSIGNED NOT NULL,

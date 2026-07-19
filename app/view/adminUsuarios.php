@@ -18,7 +18,10 @@
         <tbody>
             <?php foreach ($usuarios as $u): ?>
                 <tr>
-                    <td><?= htmlspecialchars($u['nome']) ?></td>
+                    <td>
+                        <?= htmlspecialchars($u['nome']) ?>
+                        <a href="/Admin/usuarioRecursos/<?= (int) $u['id'] ?>" class="small ms-1">(ver recursos)</a>
+                    </td>
                     <td><?= htmlspecialchars($u['email']) ?></td>
                     <td>
                         <?php if ((int) $u['nivel'] === $NIVEL_ADMIN): ?>
