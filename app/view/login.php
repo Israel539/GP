@@ -35,7 +35,7 @@
 
                                 </label>
                             </div>
-                            <a href="#" class="text-decoration-none">Esqueci a senha?</a>
+                            <a href="/Login/esqueciSenha" class="text-decoration-none">Esqueci a senha?</a>
                         </div>
 
                         <div class="mb-3">

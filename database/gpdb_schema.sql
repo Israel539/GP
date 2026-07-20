@@ -31,10 +31,22 @@ CREATE TABLE IF NOT EXISTS usuarios (
     foto            VARCHAR(255)    DEFAULT NULL,
     nivel           TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT '1=Admin, 2=Usuario comum',
     statusRegistro  TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '1=Ativo, 2=Inativo/Banido',
+    reset_token             VARCHAR(255) DEFAULT NULL COMMENT 'Token de "esqueci minha senha", uso unico',
+    reset_token_expira_em   DATETIME     DEFAULT NULL,
+    tentativas_login        TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Zera a cada login bem-sucedido',
+    bloqueado_ate           DATETIME     DEFAULT NULL COMMENT 'Rate limiting: login recusado enquanto NOW() < bloqueado_ate',
     criado_em       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_usuarios_email (email)
 ) ENGINE=InnoDB;
+
+-- Migracao segura pra quem ja tinha a tabela usuarios criada ANTES destas
+-- colunas existirem -- "IF NOT EXISTS" faz isso ser inofensivo de rodar de
+-- novo (nao da erro se a coluna ja existir).
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255) DEFAULT NULL;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS reset_token_expira_em DATETIME DEFAULT NULL;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tentativas_login TINYINT UNSIGNED NOT NULL DEFAULT 0;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bloqueado_ate DATETIME DEFAULT NULL;
 
 -- Cria o primeiro Admin do sistema (equivalente ao criaSuperUser() do Login.php,
 -- mas já com hash de senha de verdade em vez de senha em texto puro).
