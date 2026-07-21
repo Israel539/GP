@@ -1,8 +1,12 @@
 <?php
 /** @var array $plano */
+/** @var array|null $planoPai */
+/** @var array $filhos */
+/** @var bool $temFilhos */
 /** @var array $parcelas */
 /** @var float $valorGuardado */
 /** @var float $valorRestante */
+/** @var float $valorTotalExibido */
 /** @var float $progresso */
 include __DIR__ . '/comuns/header.php'; ?>
 
@@ -17,6 +21,11 @@ include __DIR__ . '/comuns/header.php'; ?>
                                 <img src="<?= htmlspecialchars($plano['imagem_url']) ?>" class="plano-img-thumb flex-shrink-0" alt="Imagem do produto">
                             <?php endif; ?>
                             <div>
+                                <?php if (!empty($planoPai)): ?>
+                                    <p class="mb-1 small">
+                                        <a href="/PlanoCompra/ver/<?= (int) $planoPai['id'] ?>">&larr; <?= htmlspecialchars($planoPai['nome']) ?></a>
+                                    </p>
+                                <?php endif; ?>
                                 <h3 class="card-title mb-0"><?= htmlspecialchars($plano['nome']) ?></h3>
                                 <p class="text-muted mb-1">Status: <strong><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $plano['status']))) ?></strong></p>
                                 <?php if (!empty($plano['data_prevista_compra'])): ?>
@@ -25,7 +34,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                             </div>
                         </div>
                         <div class="text-end">
-                            <a href="/PlanoCompra" class="btn btn-secondary btn-sm">Voltar</a>
+                            <a href="<?= !empty($planoPai) ? '/PlanoCompra/ver/' . (int) $planoPai['id'] : '/PlanoCompra' ?>" class="btn btn-secondary btn-sm">Voltar</a>
                         </div>
                     </div>
 
@@ -34,22 +43,62 @@ include __DIR__ . '/comuns/header.php'; ?>
                     <div class="mb-4">
                         <div class="d-flex justify-content-between small text-muted mb-1">
                             <span>Guardado: <strong class="text-success">R$ <?= number_format($valorGuardado, 2, ',', '.') ?></strong></span>
-                            <span>Meta: R$ <?= number_format((float) $plano['valor_total'], 2, ',', '.') ?></span>
+                            <span>Meta: R$ <?= number_format($valorTotalExibido, 2, ',', '.') ?></span>
                         </div>
                         <div class="progress" style="height: 14px;">
                             <div class="progress-bar bg-success" style="width: <?= $progresso ?>%"><?= number_format($progresso, 0) ?>%</div>
                         </div>
                         <div class="small text-muted mt-1">
                             Faltam R$ <?= number_format($valorRestante, 2, ',', '.') ?>
-                            &middot; <?= count($parcelas) ?> de <?= (int) $plano['parcelas_previstas'] ?> parcela(s) prevista(s)
+                            <?php if (!$temFilhos): ?>
+                                &middot; <?= count($parcelas) ?> de <?= (int) $plano['parcelas_previstas'] ?> parcela(s) prevista(s)
+                            <?php endif; ?>
                         </div>
                     </div>
+
+                    <?php if ($temFilhos): ?>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">Itens em <?= htmlspecialchars($plano['nome']) ?></h5>
+                            <a href="/PlanoCompra/form?parent_id=<?= (int) $plano['id'] ?>" class="btn btn-sm btn-primary">+ Adicionar item</a>
+                        </div>
+                        <div class="row g-3 mb-4">
+                            <?php foreach ($filhos as $filho): ?>
+                                <?php
+                                    $valorTotalFilho = (float) $filho['valor_total'];
+                                    $valorGuardadoFilho = (float) $filho['valor_guardado'];
+                                    $progressoFilho = $valorTotalFilho > 0 ? min(100, ($valorGuardadoFilho / $valorTotalFilho) * 100) : 0;
+                                ?>
+                                <div class="col-md-6">
+                                    <a href="/PlanoCompra/ver/<?= (int) $filho['id'] ?>" class="text-decoration-none text-body">
+                                        <div class="border rounded p-3 h-100">
+                                            <div class="d-flex justify-content-between">
+                                                <strong><?= htmlspecialchars($filho['nome']) ?></strong>
+                                                <?php if (!empty($filho['total_filhos'])): ?>
+                                                    <span class="badge bg-secondary"><?= (int) $filho['total_filhos'] ?> item(s)</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="progress mt-2" style="height: 8px;">
+                                                <div class="progress-bar bg-success" style="width: <?= $progressoFilho ?>%"></div>
+                                            </div>
+                                            <div class="small text-muted mt-1">
+                                                R$ <?= number_format($valorGuardadoFilho, 2, ',', '.') ?> de R$ <?= number_format($valorTotalFilho, 2, ',', '.') ?>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="mb-4">
+                            <a href="/PlanoCompra/form?parent_id=<?= (int) $plano['id'] ?>" class="btn btn-sm btn-outline-primary">+ Transformar em categoria (adicionar item)</a>
+                        </div>
+                    <?php endif; ?>
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-4">
                             <div class="border rounded p-3 h-100">
                                 <h6>Valor total</h6>
-                                <p class="fs-4 mb-0">R$ <?= number_format((float) $plano['valor_total'], 2, ',', '.') ?></p>
+                                <p class="fs-4 mb-0">R$ <?= number_format($valorTotalExibido, 2, ',', '.') ?></p>
                             </div>
                         </div>
                         <div class="col-md-4">

@@ -238,6 +238,7 @@ CREATE TABLE IF NOT EXISTS contas (
 CREATE TABLE IF NOT EXISTS planos_compra (
     id                      INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     usuario_id              INT UNSIGNED NOT NULL,
+    parent_id               INT UNSIGNED     DEFAULT NULL,
     nome                    VARCHAR(150) NOT NULL,
     descricao               TEXT             DEFAULT NULL,
     imagem_url              VARCHAR(255)     DEFAULT NULL,
@@ -252,8 +253,20 @@ CREATE TABLE IF NOT EXISTS planos_compra (
     excluido_em             DATETIME         DEFAULT NULL,
 
     CONSTRAINT fk_plano_compra_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-    INDEX idx_planos_usuario_status (usuario_id, status)
+    CONSTRAINT fk_plano_compra_parent FOREIGN KEY (parent_id) REFERENCES planos_compra(id) ON DELETE CASCADE,
+    INDEX idx_planos_usuario_status (usuario_id, status),
+    INDEX idx_planos_parent (parent_id)
 ) ENGINE=InnoDB;
+
+ALTER TABLE planos_compra ADD COLUMN IF NOT EXISTS parent_id INT UNSIGNED DEFAULT NULL;
+SET @fk_exists = (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+    WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = 'planos_compra' AND CONSTRAINT_NAME = 'fk_plano_compra_parent');
+SET @sql = IF(@fk_exists = 0,
+    'ALTER TABLE planos_compra ADD CONSTRAINT fk_plano_compra_parent FOREIGN KEY (parent_id) REFERENCES planos_compra(id) ON DELETE CASCADE',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- Cada linha e um deposito/parcela de verdade guardado rumo ao plano (ex:
 -- "guardei R$500 dia 05/07 pra geladeira"). valor_total do plano e a META;

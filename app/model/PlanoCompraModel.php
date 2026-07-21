@@ -10,23 +10,34 @@ class PlanoCompraModel extends BaseModel
         'parcelas_previstas' => ['rules' => 'required|int', 'label' => 'Parcelas previstas'],
     ];
 
+    // Campos editaveis via formulario. parent_id fica de fora de proposito:
+    // definido so na criacao, nao reaproveitamos pra "mover" um item entre
+    // categorias depois (evita loop de parentesco por enquanto).
+    private const CAMPOS_EDITAVEIS = [
+        'nome', 'descricao', 'imagem_url', 'produto_url',
+        'valor_total', 'parcelas_previstas', 'data_prevista_compra',
+    ];
+
     /**
      * criar
      * @param array $dados
      * @param int $usuarioId
+     * @param int|null $parentId Se vier preenchido, esse plano passa a ser
+     *        um "item" dentro de outro plano (categoria/pasta).
      * @return int
      */
-    public function criar(array $dados, int $usuarioId): int
+    public function criar(array $dados, int $usuarioId, ?int $parentId = null): int
     {
         $sql = "INSERT INTO planos_compra
-                    (usuario_id, nome, descricao, imagem_url, produto_url,
+                    (usuario_id, parent_id, nome, descricao, imagem_url, produto_url,
                      valor_total, parcelas_previstas, status, data_prevista_compra)
                 VALUES
-                    (:usuario_id, :nome, :descricao, :imagem_url, :produto_url,
+                    (:usuario_id, :parent_id, :nome, :descricao, :imagem_url, :produto_url,
                      :valor_total, :parcelas_previstas, :status, :data_prevista_compra)";
 
         return $this->connDb->insert($sql, [
             'usuario_id'           => $usuarioId,
+            'parent_id'            => $parentId,
             'nome'                 => $dados['nome'],
             'descricao'            => $dados['descricao'] ?? null,
             'imagem_url'           => $dados['imagem_url'] ?? null,
@@ -40,14 +51,20 @@ class PlanoCompraModel extends BaseModel
 
     /**
      * listarPorUsuario
+     * Por padrao traz so os planos de topo (sem pai) -- os itens dentro de
+     * uma categoria aparecem na tela de detalhe do pai, nao na lista geral.
      * @param int $usuarioId
      * @return array
      */
-    public function listarPorUsuario(int $usuarioId, string $search = '', int $page = 1, int $perPage = 6, bool $includeExcluidos = false): array
+    public function listarPorUsuario(int $usuarioId, string $search = '', int $page = 1, int $perPage = 6, bool $includeExcluidos = false, bool $apenasRaizes = true): array
     {
         $offset = max(0, ($page - 1) * $perPage);
         $where = "usuario_id = :usuario_id";
         $params = ['usuario_id' => $usuarioId];
+
+        if ($apenasRaizes) {
+            $where .= " AND parent_id IS NULL";
+        }
 
         if (!$includeExcluidos) {
             $where .= " AND status != 'excluido'";
@@ -63,7 +80,8 @@ class PlanoCompraModel extends BaseModel
 
         $sql = "SELECT pc.*,
                     COALESCE((SELECT SUM(valor) FROM plano_compra_parcelas WHERE plano_compra_id = pc.id), 0) AS valor_guardado,
-                    (SELECT COUNT(*) FROM plano_compra_parcelas WHERE plano_compra_id = pc.id) AS parcelas_pagas
+                    (SELECT COUNT(*) FROM plano_compra_parcelas WHERE plano_compra_id = pc.id) AS parcelas_pagas,
+                    (SELECT COUNT(*) FROM planos_compra filhos WHERE filhos.parent_id = pc.id AND filhos.status != 'excluido') AS total_filhos
                 FROM planos_compra pc
                 WHERE {$where}
                 ORDER BY status ASC, atualizado_em DESC
@@ -72,10 +90,14 @@ class PlanoCompraModel extends BaseModel
         return $this->connDb->select($sql, $params);
     }
 
-    public function contarPorUsuario(int $usuarioId, string $search = '', bool $includeExcluidos = false): int
+    public function contarPorUsuario(int $usuarioId, string $search = '', bool $includeExcluidos = false, bool $apenasRaizes = true): int
     {
         $where = "usuario_id = :usuario_id";
         $params = ['usuario_id' => $usuarioId];
+
+        if ($apenasRaizes) {
+            $where .= " AND parent_id IS NULL";
+        }
 
         if (!$includeExcluidos) {
             $where .= " AND status != 'excluido'";
@@ -93,6 +115,26 @@ class PlanoCompraModel extends BaseModel
     }
 
     /**
+     * listarFilhos
+     * Itens dentro de uma categoria (ex: Micro-ondas e Geladeira dentro de
+     * Cozinha), ja com o progresso de cada um calculado.
+     * @param int $parentId
+     * @return array
+     */
+    public function listarFilhos(int $parentId): array
+    {
+        $sql = "SELECT pc.*,
+                    COALESCE((SELECT SUM(valor) FROM plano_compra_parcelas WHERE plano_compra_id = pc.id), 0) AS valor_guardado,
+                    (SELECT COUNT(*) FROM plano_compra_parcelas WHERE plano_compra_id = pc.id) AS parcelas_pagas,
+                    (SELECT COUNT(*) FROM planos_compra netos WHERE netos.parent_id = pc.id AND netos.status != 'excluido') AS total_filhos
+                FROM planos_compra pc
+                WHERE parent_id = :parent_id AND status != 'excluido'
+                ORDER BY status ASC, atualizado_em DESC";
+
+        return $this->connDb->select($sql, ['parent_id' => $parentId]);
+    }
+
+    /**
      * buscarPorId
      * @param int $id
      * @return array
@@ -103,18 +145,36 @@ class PlanoCompraModel extends BaseModel
         return $this->connDb->select($sql, ['id' => $id], 'one');
     }
 
-    // Campos que o USUARIO pode alterar via formulario de edicao. Qualquer
-    // outra chave que vier em $dados (ex: usuario_id, status, excluido_em,
-    // criado_em, id) e ignorada aqui -- essas colunas so podem mudar atraves
-    // dos metodos dedicados (finalizar(), cancelar(), deletar(), restaurar()),
-    // que tem sua propria regra de negocio. Sem essa lista branca, qualquer
-    // campo extra enviado no POST (ainda que nao exista no <form> HTML) virava
-    // uma coluna no SET do UPDATE -- inclusive usuario_id, permitindo shift de
-    // dono do registro.
-    private const CAMPOS_EDITAVEIS = [
-        'nome', 'descricao', 'imagem_url', 'produto_url',
-        'valor_total', 'parcelas_previstas', 'data_prevista_compra',
-    ];
+    /**
+     * totaisComFilhos
+     * Soma o valor_total e o valor_guardado do plano com o de TODOS os
+     * descendentes (filhos, netos, etc). E o que faz "Coisas para casa"
+     * mostrar o progresso combinado de Cozinha + tudo que tiver dentro dela.
+     * @param int $id
+     * @return array ['valor_total' => float, 'valor_guardado' => float]
+     */
+    public function totaisComFilhos(int $id): array
+    {
+        $plano = $this->buscarPorId($id);
+
+        if (count($plano) === 0) {
+            return ['valor_total' => 0.0, 'valor_guardado' => 0.0];
+        }
+
+        $sqlGuardado = "SELECT COALESCE(SUM(valor), 0) AS total FROM plano_compra_parcelas WHERE plano_compra_id = :id";
+        $totais = [
+            'valor_total'    => (float) $plano['valor_total'],
+            'valor_guardado' => (float) $this->connDb->select($sqlGuardado, ['id' => $id], 'one')['total'],
+        ];
+
+        foreach ($this->listarFilhos($id) as $filho) {
+            $totaisFilho = $this->totaisComFilhos((int) $filho['id']);
+            $totais['valor_total']    += $totaisFilho['valor_total'];
+            $totais['valor_guardado'] += $totaisFilho['valor_guardado'];
+        }
+
+        return $totais;
+    }
 
     /**
      * atualizar
@@ -146,10 +206,7 @@ class PlanoCompraModel extends BaseModel
 
     /**
      * deletar
-     * NAO remove a linha do banco -- e um soft-delete: marca status='excluido'
-     * e grava excluido_em, permitindo undo via restaurar() dentro da janela
-     * de RESTORE_WINDOW_HOURS. (O nome do metodo e "deletar" pela API publica
-     * que o Controller usa, mas o comportamento real e o soft-delete abaixo.)
+     * Soft-delete: marca status='excluido', permite restaurar depois.
      * @param int $id
      * @return bool
      */
@@ -159,9 +216,6 @@ class PlanoCompraModel extends BaseModel
         return $this->connDb->update($sql, ['id' => $id]) !== false;
     }
 
-    /**
-     * contarExcluidosPorUsuario
-     */
     public function contarExcluidosPorUsuario(int $usuarioId): int
     {
         $sql = "SELECT COUNT(*) AS cnt FROM planos_compra WHERE usuario_id = :usuario_id AND status = 'excluido'";
@@ -169,9 +223,6 @@ class PlanoCompraModel extends BaseModel
         return isset($row['cnt']) ? (int) $row['cnt'] : 0;
     }
 
-    /**
-     * restaurar
-     */
     public function restaurar(int $id): bool
     {
         $window = defined('RESTORE_WINDOW_HOURS') ? (int) RESTORE_WINDOW_HOURS : 24;
@@ -183,7 +234,7 @@ class PlanoCompraModel extends BaseModel
 
     /**
      * restaurarTodosPorUsuario
-     * Restaura todos os planos excluidos de um usuario dentro da janela de undo.
+     * Restaura todos os planos excluidos dentro da janela de undo.
      */
     public function restaurarTodosPorUsuario(int $usuarioId): bool
     {
@@ -201,7 +252,7 @@ class PlanoCompraModel extends BaseModel
 
     /**
      * finalizar
-     * Marca o plano como concluido e grava data de conclusao.
+     * Marca o plano como concluido e grava a data.
      * @param int $id
      * @return bool
      */
@@ -214,11 +265,6 @@ class PlanoCompraModel extends BaseModel
         return $this->connDb->update($sql, ['id' => $id]) > 0;
     }
 
-    /**
-     * cancelar
-     * @param int $id
-     * @return bool
-     */
     public function cancelar(int $id): bool
     {
         $sql = "UPDATE planos_compra SET status = 'cancelado' WHERE id = :id";
@@ -227,14 +273,10 @@ class PlanoCompraModel extends BaseModel
 
     /**
      * atualizarProgresso
-     * Chamado toda vez que uma parcela e adicionada/removida. Compara o
-     * quanto ja foi guardado (soma de plano_compra_parcelas) com a meta
-     * (valor_total) e transiciona o status automaticamente:
-     *   planejamento -> em_andamento (assim que a 1a parcela entra)
-     *   em_andamento -> concluido (quando o guardado atinge a meta)
-     * Nao mexe em planos ja cancelados/excluidos -- essa automacao nao deve
-     * reviver um plano que o usuario descartou de proposito.
-     *
+     * Roda a cada parcela adicionada/removida. Compara o guardado com a
+     * meta e muda o status sozinho: planejamento -> em_andamento (primeira
+     * parcela), em_andamento -> concluido (bateu a meta). Ignora planos
+     * cancelados/excluidos, pra nao reviver algo que o usuario descartou.
      * @param int $id
      * @return void
      */

@@ -96,7 +96,17 @@ class PlanoCompra extends BaseController
 
     public function form()
     {
-        return $this->view('planoCompraForm');
+        $parentId = (int) ($this->request->getQuery('parent_id') ?? 0);
+        $planoPai = null;
+
+        if ($parentId > 0) {
+            $planoPai = $this->carregarPlanoOuNegar($parentId);
+            if ($planoPai === null) {
+                return;
+            }
+        }
+
+        return $this->view('planoCompraForm', ['planoPai' => $planoPai]);
     }
 
     public function editar()
@@ -200,18 +210,26 @@ class PlanoCompra extends BaseController
         $dados = $this->request->getPost();
         $usuario = $this->usuarioLogado();
 
+        $parentId = !empty($dados['parent_id']) ? (int) $dados['parent_id'] : null;
+
+        if ($parentId !== null && $this->carregarPlanoOuNegar($parentId) === null) {
+            return;
+        }
+
         $dados['valor_total'] = str_replace(',', '.', $dados['valor_total'] ?? '0');
 
         if (!$this->model->validate($dados)) {
             Session::set('msgError', 'Verifique os campos destacados e tente novamente.');
-            return header('Location: /PlanoCompra/form');
+            $voltarPara = $parentId ? "/PlanoCompra/form?parent_id={$parentId}" : '/PlanoCompra/form';
+            return header("Location: {$voltarPara}");
         }
 
-        $planoId = $this->model->criar($dados, (int) $usuario['id']);
+        $planoId = $this->model->criar($dados, (int) $usuario['id'], $parentId);
 
         if ($planoId > 0) {
             Session::set('msgSucesso', 'Plano de compra salvo com sucesso.');
-            return header('Location: /PlanoCompra');
+            $destino = $parentId ? "/PlanoCompra/ver/{$parentId}" : '/PlanoCompra';
+            return header("Location: {$destino}");
         }
 
         Session::set('msgError', 'Nao foi possivel salvar o plano. Tente novamente.');
@@ -227,16 +245,36 @@ class PlanoCompra extends BaseController
             return;
         }
 
+        $filhos = $this->model->listarFilhos($planoId);
+        $temFilhos = count($filhos) > 0;
+
         $parcelas = $this->parcelaModel->listarPorPlano($planoId);
         $valorGuardado = $this->parcelaModel->somarPorPlano($planoId);
         $valorTotal = (float) $plano['valor_total'];
+
+        // Se tem itens dentro (ex: Cozinha tem Micro-ondas + Geladeira), o
+        // progresso mostrado e o AGREGADO da arvore inteira, nao so do
+        // proprio registro (que pode nem ter meta propria, so servir de
+        // categoria/pasta).
+        if ($temFilhos) {
+            $totaisAgregados = $this->model->totaisComFilhos($planoId);
+            $valorTotal = $totaisAgregados['valor_total'];
+            $valorGuardado = $totaisAgregados['valor_guardado'];
+        }
+
         $progresso = $valorTotal > 0 ? min(100, ($valorGuardado / $valorTotal) * 100) : 0;
+
+        $planoPai = !empty($plano['parent_id']) ? $this->model->buscarPorId((int) $plano['parent_id']) : null;
 
         return $this->view('planoCompraDetalhe', [
             'plano'           => $plano,
+            'planoPai'        => $planoPai,
+            'filhos'          => $filhos,
+            'temFilhos'       => $temFilhos,
             'parcelas'        => $parcelas,
             'valorGuardado'   => $valorGuardado,
             'valorRestante'   => max(0, $valorTotal - $valorGuardado),
+            'valorTotalExibido' => $valorTotal,
             'progresso'       => $progresso,
         ]);
     }

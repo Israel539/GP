@@ -60,7 +60,12 @@ include __DIR__ . '/comuns/header.php'; ?>
                                 <?php if (!empty($plano['imagem_url'])): ?>
                                     <img src="<?= htmlspecialchars($plano['imagem_url']) ?>" class="plano-img-thumb flex-shrink-0" alt="Imagem do produto">
                                 <?php endif; ?>
-                                <h5 class="card-title mb-0"><?= htmlspecialchars($plano['nome']) ?></h5>
+                                <h5 class="card-title mb-0">
+                                    <?= htmlspecialchars($plano['nome']) ?>
+                                    <?php if (!empty($plano['total_filhos'])): ?>
+                                        <span class="badge bg-secondary"><?= (int) $plano['total_filhos'] ?> item(s)</span>
+                                    <?php endif; ?>
+                                </h5>
                             </div>
 
                             <?php

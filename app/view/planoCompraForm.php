@@ -5,7 +5,10 @@
         <div class="col-lg-8">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <h3 class="mb-4"><?php if (!empty($plano)): ?>Editar Plano de Compra<?php else: ?>Novo Plano de Compra<?php endif; ?></h3>
+                    <h3 class="mb-1"><?php if (!empty($plano)): ?>Editar Plano de Compra<?php else: ?>Novo Plano de Compra<?php endif; ?></h3>
+                    <?php if (!empty($planoPai)): ?>
+                        <p class="text-muted mb-4">Dentro de <strong><?= htmlspecialchars($planoPai['nome']) ?></strong></p>
+                    <?php endif; ?>
 
                     <?= mensagens() ?>
 
@@ -14,6 +17,8 @@
 
                         <?php if (!empty($plano)): ?>
                             <input type="hidden" name="id" value="<?= (int) $plano['id'] ?>">
+                        <?php elseif (!empty($planoPai)): ?>
+                            <input type="hidden" name="parent_id" value="<?= (int) $planoPai['id'] ?>">
                         <?php endif; ?>
 
                         <div class="mb-3">
@@ -57,7 +62,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between">
-                            <a href="/PlanoCompra" class="btn btn-secondary">Voltar</a>
+                            <a href="<?= !empty($planoPai) ? '/PlanoCompra/ver/' . (int) $planoPai['id'] : '/PlanoCompra' ?>" class="btn btn-secondary">Voltar</a>
                             <button type="submit" class="btn btn-primary">Salvar plano</button>
                         </div>
                     </form>
