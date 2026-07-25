@@ -12,7 +12,7 @@
 
                     <?= mensagens() ?>
 
-                    <form action="<?php if (!empty($plano)): ?>/PlanoCompra/atualizar<?php else: ?>/PlanoCompra/salvar<?php endif; ?>" method="POST">
+                    <form action="<?php if (!empty($plano)): ?>/PlanoCompra/atualizar<?php else: ?>/PlanoCompra/salvar<?php endif; ?>" method="POST" enctype="multipart/form-data">
                         <?= \App\Library\Csrf::getHiddenField() ?>
 
                         <?php if (!empty($plano)): ?>
@@ -51,10 +51,38 @@
                                 <input type="date" class="form-control" id="data_prevista_compra" name="data_prevista_compra" value="<?= htmlspecialchars($plano['data_prevista_compra'] ?? valorAntigo('data_prevista_compra')) ?>">
                             </div>
                             <div class="col-md-6">
-                                <label for="imagem_url" class="form-label">URL da imagem do produto</label>
-                                <input type="url" class="form-control" id="imagem_url" name="imagem_url" value="<?= htmlspecialchars($plano['imagem_url'] ?? valorAntigo('imagem_url')) ?>">
+                                <label class="form-label">Imagem do produto</label>
+                                <select class="form-select form-select-sm mb-2" id="modo_imagem" onchange="alternarModoImagem()">
+                                    <option value="link">Colar link</option>
+                                    <option value="upload">Enviar do computador</option>
+                                </select>
+
+                                <input type="url" class="form-control" id="imagem_url" name="imagem_url"
+                                    placeholder="https://..."
+                                    value="<?= htmlspecialchars($plano['imagem_url'] ?? valorAntigo('imagem_url')) ?>">
+
+                                <input type="file" class="form-control d-none" id="imagem_arquivo" name="imagem_arquivo" accept="image/png,image/jpeg,image/webp,image/gif">
+                                <div class="form-text">JPG, PNG, WEBP ou GIF, até 5MB.</div>
                             </div>
                         </div>
+
+                        <script>
+                            function alternarModoImagem() {
+                                const modo = document.getElementById('modo_imagem').value;
+                                const campoLink = document.getElementById('imagem_url');
+                                const campoArquivo = document.getElementById('imagem_arquivo');
+
+                                if (modo === 'upload') {
+                                    campoLink.classList.add('d-none');
+                                    campoArquivo.classList.remove('d-none');
+                                    campoLink.value = '';
+                                } else {
+                                    campoArquivo.classList.add('d-none');
+                                    campoLink.classList.remove('d-none');
+                                    campoArquivo.value = '';
+                                }
+                            }
+                        </script>
 
                         <div class="mb-3">
                             <label for="produto_url" class="form-label">Link do produto</label>

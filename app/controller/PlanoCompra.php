@@ -45,6 +45,64 @@ class PlanoCompra extends BaseController
     }
 
     /**
+     * processarUploadImagem
+     * Se o usuario escolheu "enviar do computador" e um arquivo valido veio
+     * no POST, salva em public/uploads/planos e devolve a URL completa
+     * (mesmo formato que ja usavamos pra link externo, pra nao precisar
+     * mudar a view que exibe a imagem). Retorna null se nao veio arquivo
+     * nenhum -- nesse caso o Controller mantem o que veio no campo de link.
+     *
+     * @return string|null
+     */
+    private function processarUploadImagem(): ?string
+    {
+        if (empty($_FILES['imagem_arquivo']) || $_FILES['imagem_arquivo']['error'] === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+
+        $arquivo = $_FILES['imagem_arquivo'];
+
+        if ($arquivo['error'] !== UPLOAD_ERR_OK) {
+            Session::set('msgError', 'Falha ao enviar a imagem. Tente novamente.');
+            return null;
+        }
+
+        if ($arquivo['size'] > 5 * 1024 * 1024) {
+            Session::set('msgError', 'A imagem precisa ter no maximo 5MB.');
+            return null;
+        }
+
+        // getimagesize() confere o CONTEUDO do arquivo, nao so a extensao --
+        // um .jpg forjado (que na verdade e outro tipo de arquivo) e barrado aqui.
+        $info = @getimagesize($arquivo['tmp_name']);
+        $extensoesPermitidas = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+
+        if ($info === false || !isset($extensoesPermitidas[$info['mime']])) {
+            Session::set('msgError', 'Envie uma imagem valida (JPG, PNG, WEBP ou GIF).');
+            return null;
+        }
+
+        $nomeArquivo = uniqid('plano_', true) . '.' . $extensoesPermitidas[$info['mime']];
+        $pastaDestino = __DIR__ . '/../../public/uploads/planos';
+
+        // A pasta pode nao existir de verdade no servidor (Git nao versiona
+        // pasta vazia, so o .gitkeep dentro dela) -- cria na hora se faltar,
+        // em vez de depender de alguem ter criado manualmente antes.
+        if (!is_dir($pastaDestino)) {
+            @mkdir($pastaDestino, 0775, true);
+        }
+
+        $destino = $pastaDestino . '/' . $nomeArquivo;
+
+        if (!@move_uploaded_file($arquivo['tmp_name'], $destino)) {
+            Session::set('msgError', 'Nao foi possivel salvar a imagem no servidor.');
+            return null;
+        }
+
+        return BASEURL . 'uploads/planos/' . $nomeArquivo;
+    }
+
+    /**
      * carregarPlanoVisualizavelOuNegar
      * Mesma coisa, mas para VISUALIZACAO (ver/editar form) -- aceita tambem
      * um admin com acesso de suporte ativo e especifico (Admin::suporteAcessar()).
@@ -118,7 +176,9 @@ class PlanoCompra extends BaseController
             return;
         }
 
-        return $this->view('planoCompraForm', ['plano' => $plano]);
+        $planoPai = !empty($plano['parent_id']) ? $this->model->buscarPorId((int) $plano['parent_id']) : null;
+
+        return $this->view('planoCompraForm', ['plano' => $plano, 'planoPai' => $planoPai]);
     }
 
     public function atualizar()
@@ -136,6 +196,11 @@ class PlanoCompra extends BaseController
         }
 
         $dados['valor_total'] = str_replace(',', '.', $dados['valor_total'] ?? '0');
+
+        $imagemEnviada = $this->processarUploadImagem();
+        if ($imagemEnviada !== null) {
+            $dados['imagem_url'] = $imagemEnviada;
+        }
 
         if (!$this->model->validate($dados)) {
             Session::set('msgError', 'Verifique os campos destacados e tente novamente.');
@@ -217,6 +282,11 @@ class PlanoCompra extends BaseController
         }
 
         $dados['valor_total'] = str_replace(',', '.', $dados['valor_total'] ?? '0');
+
+        $imagemEnviada = $this->processarUploadImagem();
+        if ($imagemEnviada !== null) {
+            $dados['imagem_url'] = $imagemEnviada;
+        }
 
         if (!$this->model->validate($dados)) {
             Session::set('msgError', 'Verifique os campos destacados e tente novamente.');

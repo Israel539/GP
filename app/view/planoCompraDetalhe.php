@@ -173,6 +173,7 @@ include __DIR__ . '/comuns/header.php'; ?>
 
                     <div class="d-flex gap-2 mt-4">
                         <?php if ($plano['status'] !== 'concluido' && $plano['status'] !== 'cancelado'): ?>
+                            <a href="/PlanoCompra/editar/<?= (int) $plano['id'] ?>" class="btn btn-outline-secondary">Editar</a>
                             <form action="/PlanoCompra/concluir/<?= (int) $plano['id'] ?>" method="POST">
                                 <?= \App\Library\Csrf::getHiddenField() ?>
                                 <button type="submit" class="btn btn-success">Marcar como concluído</button>
