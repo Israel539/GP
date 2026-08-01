@@ -6,7 +6,7 @@
     <footer class="bg-dark text-white mt-auto">
         <div class="text-center p-3">
             &copy; 2025 Copyright:
-            <a class="text-white-50" href="#">SeuSite.com</a>
+            <a class="text-white-50" href="#">GP.com</a>
         </div>
     </footer>
 
