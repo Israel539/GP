@@ -143,20 +143,34 @@ include __DIR__ . '/comuns/header.php'; ?>
     <!-- Chat do projeto -->
     <div class="row mt-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header">Conversa do projeto</div>
-                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
-                    <?php if (empty($mensagens)): ?>
-                        <p class="text-muted">Nenhuma mensagem ainda.</p>
-                    <?php else: ?>
-                        <?php foreach ($mensagens as $m): ?>
-                            <div class="mb-2">
-                                <strong><?= htmlspecialchars($m['autor_nome']) ?>:</strong>
-                                <?= nl2br(htmlspecialchars($m['mensagem'])) ?>
-                                <span class="small text-muted"><?= htmlspecialchars($m['enviado_em']) ?></span>
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Conversa do projeto</span>
+                  
+                </div>
+                <div class="card-body p-0">
+                    <div style="max-height: 320px; overflow-y: auto;" class="p-3">
+                        <?php if (empty($mensagens)): ?>
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-chat-left-text fs-3 d-block mb-2"></i>
+                                <p class="mb-0">Nenhuma mensagem ainda.</p>
                             </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                        <?php else: ?>
+                            <div class="d-flex flex-column gap-2">
+                                <?php foreach ($mensagens as $m): ?>
+                                    <div class="border rounded p-2 bg-light">
+                                        <div class="d-flex justify-content-between align-items-start gap-2">
+                                            <strong><?= htmlspecialchars($m['autor_nome']) ?></strong>
+                                            <small class="text-muted"><?= htmlspecialchars($m['enviado_em']) ?></small>
+                                        </div>
+                                        <div class="mt-1 small">
+                                            <?= nl2br(htmlspecialchars($m['mensagem'])) ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div class="card-footer">
                     <form action="/Projeto/mensagem/<?= (int) $projeto['id'] ?>" method="POST" class="d-flex gap-2">

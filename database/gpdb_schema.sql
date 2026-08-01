@@ -451,3 +451,47 @@ SELECT
 FROM contas c
 LEFT JOIN transacoes t ON t.conta_id = c.id
 GROUP BY c.id, c.usuario_id, c.nome, c.saldo_inicial;
+
+-- ============================================================================
+-- ORCAMENTO POR CATEGORIA
+-- ============================================================================
+-- Um limite por categoria, valido todo mes (nao precisa recriar mes a mes).
+-- O gasto do mes atual e calculado na hora, comparando com transacoes.
+CREATE TABLE IF NOT EXISTS orcamentos_categoria (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    usuario_id      INT UNSIGNED NOT NULL,
+    categoria_id    INT UNSIGNED NOT NULL,
+    valor_limite    DECIMAL(14,2) NOT NULL,
+    criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_orcamento_usuario   FOREIGN KEY (usuario_id)   REFERENCES usuarios(id)   ON DELETE CASCADE,
+    CONSTRAINT fk_orcamento_categoria FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_orcamento_usuario_categoria (usuario_id, categoria_id)
+) ENGINE=InnoDB;
+
+-- ============================================================================
+-- TRANSACOES RECORRENTES
+-- ============================================================================
+-- Modelo/template de lancamento fixo (aluguel, assinatura). Um cron
+-- (scripts/gerar_transacoes_recorrentes.php) confere diariamente quais
+-- precisam gerar uma transacao de verdade no mes.
+CREATE TABLE IF NOT EXISTS transacoes_recorrentes (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    conta_id        INT UNSIGNED NOT NULL,
+    categoria_id    INT UNSIGNED DEFAULT NULL,
+    descricao       VARCHAR(200) NOT NULL,
+    valor           DECIMAL(14,2) NOT NULL,
+    tipo            ENUM('receita','despesa') NOT NULL,
+    modalidade      ENUM('pix','debito','credito','dinheiro','outro') NOT NULL DEFAULT 'outro',
+    dia_mes         TINYINT UNSIGNED NOT NULL COMMENT 'Dia do mes em que deve lancar (1-31, clampado no mes curto)',
+    ativo           TINYINT(1) NOT NULL DEFAULT 1,
+    data_inicio     DATE NOT NULL,
+    data_fim        DATE DEFAULT NULL COMMENT 'NULL = sem data de termino',
+    ultima_geracao  DATE DEFAULT NULL COMMENT 'Ultimo mes em que uma transacao real foi gerada a partir daqui',
+    criado_em       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_recorrencia_conta     FOREIGN KEY (conta_id)     REFERENCES contas(id)     ON DELETE CASCADE,
+    CONSTRAINT fk_recorrencia_categoria FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE SET NULL,
+    INDEX idx_recorrencia_conta (conta_id)
+) ENGINE=InnoDB;

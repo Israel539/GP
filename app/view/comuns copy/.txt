@@ -1,0 +1,3 @@
+comun -> aquilo que e compartilhado por varios.
+
+Verifica sessão com isset($_SESSION['userLogado']).
