@@ -143,4 +143,17 @@ class TarefaModel extends BaseModel
 
         return true;
     }
+
+    /**
+     * excluir
+     * Exclui a tarefa do projeto.
+     *
+     * @param int $tarefaId
+     * @return bool
+     */
+    public function excluir(int $tarefaId): bool
+    {
+        $sql = "DELETE FROM tarefas WHERE id = :id";
+        return $this->connDb->delete($sql, ['id' => $tarefaId]) > 0;
+    }
 }

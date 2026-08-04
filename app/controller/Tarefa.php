@@ -83,6 +83,46 @@ class Tarefa extends BaseController
     }
 
     /**
+     * excluir
+     * Permite que apenas o responsavel da tarefa a exclua dentro do projeto.
+     *
+     * @return void
+     */
+    public function excluir()
+    {
+        $tarefaId = (int) $this->request->getAction();
+        $tarefa   = $this->model->buscarPorId($tarefaId);
+
+        if (count($tarefa) === 0) {
+            Session::set('msgError', 'Tarefa nao encontrada.');
+            return header("Location: /Projeto");
+        }
+
+        $projetoId = (int) $tarefa['projeto_id'];
+        $usuario   = $this->usuarioLogado();
+
+        if (!$this->autorizado($projetoId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        if ((int) $tarefa['responsavel_id'] !== (int) $usuario['id']) {
+            http_response_code(403);
+            Session::set('msgError', 'Somente o responsavel da tarefa pode apagar esta tarefa.');
+            return header("Location: /Projeto/kanban/{$projetoId}");
+        }
+
+        $ok = $this->model->excluir($tarefaId);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Tarefa excluida.');
+        } else {
+            Session::set('msgError', 'Nao foi possivel excluir a tarefa.');
+        }
+
+        return header("Location: /Projeto/kanban/{$projetoId}");
+    }
+
+    /**
      * autorizado
      * Criar/mover tarefa e uma ACAO -- exige participacao de verdade no
      * projeto. Acesso de suporte (Admin::suporteAcessar()) nunca da bypass

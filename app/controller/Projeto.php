@@ -97,7 +97,77 @@ class Projeto extends BaseController
             'tarefas'       => $tarefas,
             'colaboradores' => $colaboradores,
             'mensagens'     => $mensagens,
+            'usuario'       => $usuario,
+            'usuarioEhDono' => $this->model->usuarioEhDono($projetoId, (int) $usuario['id']),
         ]);
+    }
+
+    /**
+     * sair
+     * Permite que um colaborador saia do projeto. O dono nao pode sair.
+     *
+     * @return void
+     */
+    public function sair()
+    {
+        $projetoId = (int) $this->request->getAction();
+        $usuario   = $this->usuarioLogado();
+
+        if (!$this->model->usuarioParticipa($projetoId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        if ($this->model->usuarioEhDono($projetoId, (int) $usuario['id'])) {
+            Session::set('msgError', 'O dono do projeto nao pode sair. Remova o projeto ou transfira a propriedade antes.');
+            return header("Location: /Projeto/kanban/{$projetoId}");
+        }
+
+        $ok = $this->model->removerParticipante($projetoId, (int) $usuario['id']);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Voce saiu do projeto.');
+            return header('Location: /Projeto');
+        }
+
+        Session::set('msgError', 'Nao foi possivel sair do projeto.');
+        return header("Location: /Projeto/kanban/{$projetoId}");
+    }
+
+    /**
+     * removerColaborador
+     * Permite que o dono remova um colaborador do projeto.
+     *
+     * @return void
+     */
+    public function removerColaborador()
+    {
+        $projetoId      = (int) $this->request->getAction();
+        $colaboradorId  = (int) $this->request->getId();
+        $usuario        = $this->usuarioLogado();
+
+        if (!$this->model->usuarioEhDono($projetoId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        if ($colaboradorId === (int) $usuario['id']) {
+            Session::set('msgError', 'Use a opção sair para deixar o projeto.');
+            return header("Location: /Projeto/kanban/{$projetoId}");
+        }
+
+        if ($this->model->usuarioEhDono($projetoId, $colaboradorId)) {
+            Session::set('msgError', 'Nao é possivel remover o dono do projeto.');
+            return header("Location: /Projeto/kanban/{$projetoId}");
+        }
+
+        $ok = $this->model->removerParticipante($projetoId, $colaboradorId);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Colaborador removido do projeto.');
+        } else {
+            Session::set('msgError', 'Nao foi possivel remover o colaborador.');
+        }
+
+        return header("Location: /Projeto/kanban/{$projetoId}");
     }
 
     /**
@@ -187,8 +257,10 @@ class Projeto extends BaseController
         $projetoId = (int) $this->request->getAction();
         $usuario   = $this->usuarioLogado();
 
-        if (!$this->podeGerenciar($projetoId, (int) $usuario['id'])) {
-            return $this->negarAcesso();
+        if (!$this->model->usuarioEhDono($projetoId, (int) $usuario['id'])) {
+            http_response_code(403);
+            Session::set('msgError', 'Somente o dono do projeto pode concluir o projeto.');
+            return header("Location: /Projeto/kanban/{$projetoId}");
         }
 
         $ok = $this->model->concluir($projetoId);

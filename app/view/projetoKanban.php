@@ -2,6 +2,8 @@
 /** @var array $projeto */
 /** @var array $colaboradores */
 /** @var array $tarefas */
+/** @var array $usuario */
+/** @var bool $usuarioEhDono */
 include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container-fluid py-4">
@@ -12,7 +14,7 @@ include __DIR__ . '/comuns/header.php'; ?>
             <span class="badge bg-info text-dark"><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $projeto['status']))) ?></span>
         </div>
         <div class="col-4 text-end">
-            <?php if ($projeto['status'] !== 'concluido'): ?>
+            <?php if ($projeto['status'] !== 'concluido' && isset($usuario) && $usuario['id'] === (int) $projeto['dono_id']): ?>
                 <form action="/Projeto/concluir/<?= (int) $projeto['id'] ?>" method="POST" class="d-inline">
                     <?= \App\Library\Csrf::getHiddenField() ?>
                     <button type="submit" class="btn btn-success btn-sm"
@@ -33,9 +35,17 @@ include __DIR__ . '/comuns/header.php'; ?>
                 <div class="card-header">Colaboradores</div>
                 <ul class="list-group list-group-flush">
                     <?php foreach ($colaboradores as $c): ?>
-                        <li class="list-group-item d-flex justify-content-between">
-                            <?= htmlspecialchars($c['nome']) ?>
-                            <span class="badge bg-secondary"><?= htmlspecialchars($c['papel']) ?></span>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <?= htmlspecialchars($c['nome']) ?>
+                                <span class="badge bg-secondary ms-2"><?= htmlspecialchars($c['papel']) ?></span>
+                            </div>
+                            <?php if (isset($usuario) && $usuarioEhDono && $c['papel'] === 'colaborador'): ?>
+                                <form action="/Projeto/removerColaborador/<?= (int) $projeto['id'] ?>/<?= (int) $c['id'] ?>" method="POST" class="m-0">
+                                    <?= \App\Library\Csrf::getHiddenField() ?>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                                </form>
+                            <?php endif; ?>
                         </li>
                     <?php endforeach; ?>
                 </ul>
@@ -48,6 +58,13 @@ include __DIR__ . '/comuns/header.php'; ?>
                             <button type="submit" class="btn btn-outline-primary">Convidar</button>
                         </div>
                     </form>
+
+                    <?php if (isset($usuario) && !$usuarioEhDono): ?>
+                        <form action="/Projeto/sair/<?= (int) $projeto['id'] ?>" method="POST" class="mt-3">
+                            <?= \App\Library\Csrf::getHiddenField() ?>
+                            <button type="submit" class="btn btn-outline-secondary btn-sm w-100" onclick="return confirm('Sair deste projeto?');">Sair do projeto</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -98,14 +115,19 @@ include __DIR__ . '/comuns/header.php'; ?>
                                 <?php foreach ($tarefas as $tarefa): ?>
                                     <?php if ($tarefa['status'] !== $statusColuna) continue; ?>
                                     <?php
-                                        $cardClass = $tarefa['atrasada'] ? 'border-danger' : ($statusColuna === 'em_andamento' ? 'border-warning' : '');
-                                        $badgeHtml = '';
-
                                         if ($tarefa['atrasada']) {
+                                            $cardClass = 'border-danger';
                                             $badgeHtml = '<span class="badge bg-danger">Atrasada</span>';
                                         } elseif ($statusColuna === 'em_andamento') {
+                                            $cardClass = 'border-warning';
                                             $badgeText = !empty($tarefa['data_limite']) ? 'Dentro do prazo' : 'Em andamento';
                                             $badgeHtml = '<span class="badge bg-warning text-dark">' . $badgeText . '</span>';
+                                        } elseif ($statusColuna === 'concluido') {
+                                            $cardClass = 'border-success';
+                                            $badgeHtml = '<span class="badge bg-success">Concluida</span>';
+                                        } else {
+                                            $cardClass = '';
+                                            $badgeHtml = '';
                                         }
                                     ?>
                                     <div class="card mb-2 <?= $cardClass ?>">
@@ -127,6 +149,13 @@ include __DIR__ . '/comuns/header.php'; ?>
                                                     <?= botaoMover($tarefa['id'], 'concluido', 'Concluir') ?>
                                                 <?php elseif ($statusColuna === 'concluido'): ?>
                                                     <?= botaoMover($tarefa['id'], 'em_andamento', 'Reabrir') ?>
+                                                <?php endif; ?>
+
+                                                <?php if ((int) $tarefa['responsavel_id'] === (int) $usuario['id']): ?>
+                                                    <form action="/Tarefa/excluir/<?= (int) $tarefa['id'] ?>" method="POST" class="d-inline">
+                                                        <?= \App\Library\Csrf::getHiddenField() ?>
+                                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir esta tarefa?');">Excluir</button>
+                                                    </form>
                                                 <?php endif; ?>
                                             </div>
                                         </div>

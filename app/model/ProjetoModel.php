@@ -155,6 +155,51 @@ class ProjetoModel extends BaseModel
     }
 
     /**
+     * usuarioEhDono
+     * Retorna true se o usuario é dono do projeto.
+     *
+     * @param int $projetoId
+     * @param int $usuarioId
+     * @return bool
+     */
+    public function usuarioEhDono(int $projetoId, int $usuarioId): bool
+    {
+        $sql = "SELECT id FROM projeto_usuarios
+                WHERE projeto_id = :projeto_id
+                  AND usuario_id = :usuario_id
+                  AND papel = :papel
+                LIMIT 1";
+
+        $linha = $this->connDb->select($sql, [
+            'projeto_id' => $projetoId,
+            'usuario_id' => $usuarioId,
+            'papel'      => self::PAPEL_DONO,
+        ], 'one');
+
+        return count($linha) > 0;
+    }
+
+    /**
+     * removerParticipante
+     * Remove um usuario do projeto.
+     *
+     * @param int $projetoId
+     * @param int $usuarioId
+     * @return bool
+     */
+    public function removerParticipante(int $projetoId, int $usuarioId): bool
+    {
+        $sql = "DELETE FROM projeto_usuarios
+                WHERE projeto_id = :projeto_id
+                  AND usuario_id = :usuario_id";
+
+        return $this->connDb->delete($sql, [
+            'projeto_id' => $projetoId,
+            'usuario_id' => $usuarioId,
+        ]) > 0;
+    }
+
+    /**
      * convidar
      * Gera um convite pendente por e-mail. Quem convida precisa já
      * participar do projeto -- validar isso no Controller antes de chamar.
