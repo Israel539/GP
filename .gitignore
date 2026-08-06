@@ -1,2 +1,4 @@
 .env
 vendor/
+storage/cache/
+app/config/cacert.pem

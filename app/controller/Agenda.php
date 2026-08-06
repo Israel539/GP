@@ -36,8 +36,66 @@ class Agenda extends BaseController
     }
 
     /**
+     * calendario
+     * URL: /Agenda/calendario?ano=2026&mes=8
+     * Visualizacao em grid mensal (tipo Google Calendar). Sem parametros,
+     * mostra o mes atual.
+     *
+     * @return void
+     */
+    public function calendario()
+    {
+        $usuario = $this->usuarioLogado();
+
+        $hoje = new \DateTime();
+        $ano  = (int) ($this->request->getQuery('ano') ?? $hoje->format('Y'));
+        $mes  = (int) ($this->request->getQuery('mes') ?? $hoje->format('n'));
+
+        if ($mes < 1 || $mes > 12) {
+            $mes = (int) $hoje->format('n');
+        }
+
+        $primeiroDiaMes = \DateTime::createFromFormat('Y-n-j', "{$ano}-{$mes}-1");
+        $primeiroDiaMes->setTime(0, 0, 0);
+
+        $mesAnterior  = (clone $primeiroDiaMes)->modify('-1 month');
+        $mesSeguinte  = (clone $primeiroDiaMes)->modify('+1 month');
+
+        $compromissos = $this->model->listarPorMes((int) $usuario['id'], $ano, $mes);
+
+        // Agrupa por dia (Y-m-d) pra view so percorrer o array do dia certo.
+        $porDia = [];
+        foreach ($compromissos as $c) {
+            $diaChave = date('Y-m-d', strtotime($c['data_inicio']));
+            $porDia[$diaChave][] = $c;
+        }
+
+        // Feriados nacionais (BrasilAPI, com cache local -- ver FeriadoService).
+        // Busca tambem o ano do mes anterior/seguinte, pra cobrir os dias "de
+        // fora" que o grid mostra quando o mes vira dezembro/janeiro.
+        $feriados = \App\Library\FeriadoService::doIntervaloDeAnos([
+            (int) $mesAnterior->format('Y'),
+            $ano,
+            (int) $mesSeguinte->format('Y'),
+        ]);
+
+        return $this->view("agendaCalendario", [
+            'ano'          => $ano,
+            'mes'          => $mes,
+            'primeiroDia'  => $primeiroDiaMes,
+            'mesAnterior'  => $mesAnterior,
+            'mesSeguinte'  => $mesSeguinte,
+            'porDia'       => $porDia,
+            'feriados'     => $feriados,
+            'hojeChave'    => $hoje->format('Y-m-d'),
+        ]);
+    }
+
+    /**
      * form
      * URL: /Agenda/form ou /Agenda/form/{id} (edicao)
+     * Aceita ?data=YYYY-MM-DD (vindo de um clique no calendario) pra
+     * pre-preencher o inicio de um compromisso novo.
      *
      * @return void
      */
@@ -59,7 +117,12 @@ class Agenda extends BaseController
             $compromisso = $this->model->buscarPorId((int) $idParaEditar);
         }
 
-        return $this->view("compromissoForm", ['compromisso' => $compromisso]);
+        $dataPreenchida = $this->request->getQuery('data');
+
+        return $this->view("compromissoForm", [
+            'compromisso'    => $compromisso,
+            'dataPreenchida' => $dataPreenchida,
+        ]);
     }
 
     /**

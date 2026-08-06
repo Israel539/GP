@@ -212,6 +212,35 @@ class CompromissoModel extends BaseModel
     }
 
     /**
+     * listarPorMes
+     * Usado na visualizacao em calendario (grid mensal). Traz qualquer
+     * compromisso que toque o mes (inicio OU fim dentro do mes, ou que
+     * atravesse o mes inteiro), nao so os que comecam nele.
+     *
+     * @param int $usuarioId
+     * @param int $ano
+     * @param int $mes 1-12
+     * @return array
+     */
+    public function listarPorMes(int $usuarioId, int $ano, int $mes): array
+    {
+        $inicioMes = sprintf('%04d-%02d-01 00:00:00', $ano, $mes);
+        $fimMes    = date('Y-m-t 23:59:59', strtotime($inicioMes));
+
+        $sql = "SELECT * FROM compromissos
+                WHERE usuario_id = :usuario_id
+                  AND data_inicio <= :fim_mes
+                  AND data_fim >= :inicio_mes
+                ORDER BY data_inicio ASC";
+
+        return $this->connDb->select($sql, [
+            'usuario_id'  => $usuarioId,
+            'inicio_mes'  => $inicioMes,
+            'fim_mes'     => $fimMes,
+        ]);
+    }
+
+    /**
      * proximosPorUsuario
      * Usado no dashboard da Home -- so os N proximos compromissos pendentes,
      * a partir de agora.

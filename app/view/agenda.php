@@ -13,10 +13,16 @@
 
     <?= mensagens() ?>
 
-    <div class="btn-group mb-4" role="group">
-        <a href="/Agenda?filtro=hoje" class="btn btn-outline-secondary <?= $filtro === 'hoje' ? 'active' : '' ?>">Hoje</a>
-        <a href="/Agenda?filtro=semana" class="btn btn-outline-secondary <?= $filtro === 'semana' ? 'active' : '' ?>">Proximos 7 dias</a>
-        <a href="/Agenda?filtro=todos" class="btn btn-outline-secondary <?= $filtro === 'todos' ? 'active' : '' ?>">Todos</a>
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div class="btn-group" role="group">
+            <a href="/Agenda?filtro=hoje" class="btn btn-outline-secondary <?= $filtro === 'hoje' ? 'active' : '' ?>">Hoje</a>
+            <a href="/Agenda?filtro=semana" class="btn btn-outline-secondary <?= $filtro === 'semana' ? 'active' : '' ?>">Proximos 7 dias</a>
+            <a href="/Agenda?filtro=todos" class="btn btn-outline-secondary <?= $filtro === 'todos' ? 'active' : '' ?>">Todos</a>
+        </div>
+        <div class="btn-group" role="group">
+            <a href="/Agenda" class="btn btn-outline-primary active"><i class="bi bi-list-ul"></i> Lista</a>
+            <a href="/Agenda/calendario" class="btn btn-outline-primary"><i class="bi bi-calendar3"></i> Calendario</a>
+        </div>
     </div>
 
     <?php if (empty($compromissos)): ?>

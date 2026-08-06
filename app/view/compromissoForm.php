@@ -52,7 +52,7 @@
                             <div class="col-md-6">
                                 <label for="data_inicio" class="form-label">Inicio</label>
                                 <input type="datetime-local" class="form-control" id="data_inicio" name="data_inicio"
-                                    value="<?= $compromisso ? date('Y-m-d\TH:i', strtotime($compromisso['data_inicio'])) : '' ?>" required>
+                                    value="<?= $compromisso ? date('Y-m-d\TH:i', strtotime($compromisso['data_inicio'])) : (!empty($dataPreenchida) ? htmlspecialchars($dataPreenchida) . 'T09:00' : '') ?>" required>
                                 <?= campoErro('data_inicio') ?>
                             </div>
                             <div class="col-md-6">
