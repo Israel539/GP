@@ -371,7 +371,7 @@ CREATE TABLE IF NOT EXISTS transacoes (
     descricao           VARCHAR(200) NOT NULL,
     valor               DECIMAL(14,2) NOT NULL COMMENT 'Sempre positivo; o "tipo" define receita/despesa',
     tipo                ENUM('receita','despesa') NOT NULL,
-    modalidade          ENUM('pix','debito','credito','dinheiro','outro') NOT NULL DEFAULT 'outro',
+    modalidade          ENUM('pix','boleto','debito','credito','dinheiro','outro') NOT NULL DEFAULT 'outro',
     -- RN09: pix/debito -> impacta saldo imediatamente na data_fato_gerador
     --       credito    -> acumula na fatura, só impacta saldo na data_vencimento
     data_fato_gerador   DATE         NOT NULL COMMENT 'Data em que a transação de fato ocorreu',
@@ -483,7 +483,7 @@ CREATE TABLE IF NOT EXISTS transacoes_recorrentes (
     descricao       VARCHAR(200) NOT NULL,
     valor           DECIMAL(14,2) NOT NULL,
     tipo            ENUM('receita','despesa') NOT NULL,
-    modalidade      ENUM('pix','debito','credito','dinheiro','outro') NOT NULL DEFAULT 'outro',
+    modalidade      ENUM('pix','boleto','debito','credito','dinheiro','outro') NOT NULL DEFAULT 'outro',
     dia_mes         TINYINT UNSIGNED NOT NULL COMMENT 'Dia do mes em que deve lancar (1-31, clampado no mes curto)',
     ativo           TINYINT(1) NOT NULL DEFAULT 1,
     data_inicio     DATE NOT NULL,

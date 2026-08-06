@@ -62,7 +62,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                                 <div class="col-md-6">
                                     <label class="form-label">Modalidade</label>
                                     <select name="modalidade" class="form-select">
-                                        <?php foreach (['pix' => 'Pix', 'debito' => 'Débito', 'credito' => 'Crédito', 'dinheiro' => 'Dinheiro', 'outro' => 'Outro'] as $valor => $rotulo): ?>
+                                        <?php foreach (['pix' => 'Pix', 'boleto' => 'Boleto', 'debito' => 'Débito', 'credito' => 'Crédito', 'dinheiro' => 'Dinheiro', 'outro' => 'Outro'] as $valor => $rotulo): ?>
                                             <option value="<?= $valor ?>" <?= ($recorrencia['modalidade'] ?? 'outro') === $valor ? 'selected' : '' ?>><?= $rotulo ?></option>
                                         <?php endforeach; ?>
                                     </select>

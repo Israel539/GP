@@ -250,6 +250,28 @@ class TransacaoModel extends BaseModel
             foreach (self::CAMPOS_IMUTAVEIS_API as $campoProibido) {
                 unset($dados[$campoProibido]);
             }
+        } else {
+            // Em transacoes manuais, nao permitimos mudar a modalidade de credito
+            // para outra coisa nem criar credito no update. Isso evita inconsistencias
+            // com faturas e o fluxo RN09.
+            if (!empty($dados['modalidade']) && $dados['modalidade'] === 'credito' && $transacao['modalidade'] !== 'credito') {
+                throw new \InvalidArgumentException('Alterar para modalidade credito nao e permitido em transacoes existentes. Crie uma nova transacao de credito.');
+            }
+
+            if ($transacao['modalidade'] === 'credito' && !empty($dados['modalidade']) && $dados['modalidade'] !== 'credito') {
+                throw new \InvalidArgumentException('Nao e permitido alterar a modalidade de uma transacao de credito.');
+            }
+
+            if ($transacao['modalidade'] === 'credito' && isset($dados['valor'])) {
+                $novoValor = (float) $dados['valor'];
+                $valorAntigo = (float) $transacao['valor'];
+                $diferenca = $novoValor - $valorAntigo;
+
+                if (!empty($transacao['fatura_id']) && abs($diferenca) > 0.0001) {
+                    $faturaModel = new FaturaModel();
+                    $faturaModel->adicionarValor((int) $transacao['fatura_id'], $diferenca);
+                }
+            }
         }
 
         if (empty($dados)) {

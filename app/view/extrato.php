@@ -1,4 +1,14 @@
-<?php include __DIR__ . '/comuns/header.php'; ?>
+<?php
+/**
+ * @var array $conta
+ * @var array $transacoes
+ * @var float $saldoAtual
+ * @var array $categorias
+ * @var array $cartoes
+ * @var array $tags
+ * @var array $filtros
+ */
+include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container-fluid py-4">
 
@@ -52,6 +62,7 @@
                             <label class="form-label small">Modalidade</label>
                             <select name="modalidade" id="modalidade" class="form-select form-select-sm" onchange="alternarCampoCartao()">
                                 <option value="pix">Pix</option>
+                                <option value="boleto">Boleto</option>
                                 <option value="debito">Debito</option>
                                 <option value="credito">Credito</option>
                                 <option value="dinheiro">Dinheiro</option>
@@ -179,6 +190,7 @@
                                 </div>
                                 <div class="col-md-2 text-end">
                                     <?php if (!$imutavel): ?>
+                                        <a href="/Transacao/editar/<?= (int) $t['id'] ?>" class="btn btn-sm btn-outline-secondary me-1">Editar</a>
                                         <form action="/Transacao/excluir/<?= (int) $t['id'] ?>" method="POST" class="d-inline">
                                             <?= \App\Library\Csrf::getHiddenField() ?>
                                             <button type="submit" class="btn btn-sm btn-outline-danger"

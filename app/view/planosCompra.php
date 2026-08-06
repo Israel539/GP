@@ -51,10 +51,11 @@ include __DIR__ . '/comuns/header.php'; ?>
     <?php if (empty($planos)): ?>
         <div class="alert alert-secondary">Nenhum plano de compra criado ainda.</div>
     <?php else: ?>
-        <div class="row g-3">
-            <?php foreach ($planos as $plano): ?>
-                <div class="col-lg-4 col-md-6">
-                    <div class="card h-100 shadow-sm">
+        <div class="planos-lista-scroll">
+            <div class="row g-3">
+                <?php foreach ($planos as $plano): ?>
+                    <div class="col-lg-4 col-md-6">
+                        <div class="card h-100 shadow-sm">
                         <div class="card-body d-flex flex-column">
                             <div class="d-flex align-items-start gap-2 mb-2">
                                 <?php if (!empty($plano['imagem_url'])): ?>
@@ -116,6 +117,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                     </div>
                 </div>
             <?php endforeach; ?>
+            </div>
         </div>
     <?php endif; ?>
 

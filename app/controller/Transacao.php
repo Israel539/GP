@@ -6,10 +6,19 @@ use App\Library\Session;
 
 class Transacao extends BaseController
 {
+    /** @var \App\Model\TransacaoModel */
     protected $model;
+
+    /** @var \App\Model\ContaModel */
     protected $contaModel;
+
+    /** @var \App\Model\CategoriaModel */
     protected $categoriaModel;
+
+    /** @var \App\Model\TagModel */
     protected $tagModel;
+
+    /** @var \App\Model\CartaoCreditoModel */
     protected $cartaoModel;
 
     public function __construct()
@@ -153,6 +162,118 @@ class Transacao extends BaseController
         $this->vincularTagsDoTexto($transacaoId, (int) $usuario['id'], $post['tags'] ?? '');
 
         Session::set('msgSucesso', 'Categoria/tags atualizadas.');
+        return header("Location: /Transacao/extrato/{$contaId}");
+    }
+
+    /**
+     * editar
+     * URL: /Transacao/editar/{id}
+     * Mostra o formulario de edicao para uma transacao manual.
+     *
+     * @return void
+     */
+    public function editar()
+    {
+        $transacaoId = (int) $this->request->getAction();
+        $transacao   = $this->model->buscarPorId($transacaoId);
+
+        if (count($transacao) === 0) {
+            Session::set('msgError', 'Transacao nao encontrada.');
+            return header('Location: /Conta');
+        }
+
+        if ($transacao['origem'] !== 'manual') {
+            Session::set('msgError', 'Somente transacoes manuais podem ser editadas.');
+            return header("Location: /Transacao/extrato/{$transacao['conta_id']}");
+        }
+
+        $contaId = (int) $transacao['conta_id'];
+        $usuario = $this->usuarioLogado();
+        if (!$this->podeGerenciarConta($contaId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        $conta      = $this->contaModel->buscarPorId($contaId);
+        $categorias = $this->categoriaModel->listarDisponiveis((int) $conta['usuario_id']);
+        $tags       = $this->tagModel->listarPorTransacao($transacaoId);
+        $cartao     = null;
+
+        if (!empty($transacao['cartao_id'])) {
+            $cartao = $this->cartaoModel->buscarPorId((int) $transacao['cartao_id']);
+        }
+
+        return $this->view('transacaoEditar', [
+            'conta'       => $conta,
+            'transacao'   => $transacao,
+            'categorias'  => $categorias,
+            'tags'        => $tags,
+            'cartao'      => $cartao,
+        ]);
+    }
+
+    /**
+     * atualizar
+     * URL: /Transacao/atualizar/{id}
+     * Atualiza uma transacao manual ja criada.
+     *
+     * @return void
+     */
+    public function atualizar()
+    {
+        $transacaoId = (int) $this->request->getAction();
+        $transacao   = $this->model->buscarPorId($transacaoId);
+
+        if (count($transacao) === 0) {
+            Session::set('msgError', 'Transacao nao encontrada.');
+            return header('Location: /Conta');
+        }
+
+        if ($transacao['origem'] !== 'manual') {
+            Session::set('msgError', 'Somente transacoes manuais podem ser editadas.');
+            return header("Location: /Transacao/extrato/{$transacao['conta_id']}");
+        }
+
+        $contaId = (int) $transacao['conta_id'];
+        $usuario = $this->usuarioLogado();
+        if (!$this->podeGerenciarConta($contaId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        $post = $this->request->getPost();
+
+        $dados = [
+            'descricao'         => $post['descricao'] ?? '',
+            'valor'             => abs((float) str_replace(',', '.', $post['valor'] ?? '0')),
+            'tipo'              => $post['tipo'] ?? $transacao['tipo'],
+            'data_fato_gerador' => $post['data_fato_gerador'] ?? $transacao['data_fato_gerador'],
+            'data_competencia'  => $post['data_competencia'] ?? $post['data_fato_gerador'] ?? $transacao['data_competencia'],
+            'categoria_id'      => !empty($post['categoria_id']) ? (int) $post['categoria_id'] : null,
+        ];
+
+        if ($transacao['modalidade'] === 'credito') {
+            $dados['modalidade'] = 'credito';
+        } else {
+            $dados['modalidade'] = $post['modalidade'] ?? $transacao['modalidade'];
+        }
+
+        if (!$this->model->validate($dados)) {
+            Session::set('msgError', 'Verifique os campos destacados e tente novamente.');
+            return header("Location: /Transacao/editar/{$transacaoId}");
+        }
+
+        try {
+            $this->model->atualizar($transacaoId, $dados);
+        } catch (\InvalidArgumentException $ex) {
+            Session::set('msgError', $ex->getMessage());
+            return header("Location: /Transacao/editar/{$transacaoId}");
+        }
+
+        foreach ($this->tagModel->listarPorTransacao($transacaoId) as $tagAtual) {
+            $this->tagModel->desvincular($transacaoId, (int) $tagAtual['id']);
+        }
+        $this->vincularTagsDoTexto($transacaoId, (int) $usuario['id'], $post['tags'] ?? '');
+
+        Session::set('msgSucesso', 'Transacao atualizada.');
         return header("Location: /Transacao/extrato/{$contaId}");
     }
 

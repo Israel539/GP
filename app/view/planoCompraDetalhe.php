@@ -143,26 +143,32 @@ include __DIR__ . '/comuns/header.php'; ?>
 
                     <?php if (!empty($parcelas)): ?>
                         <h5 class="mb-3">Parcelas guardadas</h5>
-                        <ul class="list-group mb-4">
-                            <?php foreach ($parcelas as $p): ?>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong class="text-success">R$ <?= number_format((float) $p['valor'], 2, ',', '.') ?></strong>
-                                        <span class="text-muted">&middot; <?= htmlspecialchars(date('d/m/Y', strtotime($p['data_pagamento']))) ?></span>
-                                        <?php if (!empty($p['observacao'])): ?>
-                                            <span class="text-muted">&middot; <?= htmlspecialchars($p['observacao']) ?></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php if (!in_array($plano['status'], ['concluido', 'cancelado'], true)): ?>
-                                        <form action="/PlanoCompra/excluirParcela/<?= (int) $p['id'] ?>" method="POST" class="d-inline">
-                                            <?= \App\Library\Csrf::getHiddenField() ?>
-                                            <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('Remover esta parcela?')">Remover</button>
-                                        </form>
-                                    <?php endif; ?>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body p-0">
+                                <div style="max-height: 320px; overflow-y: auto;" class="p-3">
+                                    <ul class="list-group mb-0">
+                                        <?php foreach ($parcelas as $p): ?>
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong class="text-success">R$ <?= number_format((float) $p['valor'], 2, ',', '.') ?></strong>
+                                                    <span class="text-muted">&middot; <?= htmlspecialchars(date('d/m/Y', strtotime($p['data_pagamento']))) ?></span>
+                                                    <?php if (!empty($p['observacao'])): ?>
+                                                        <span class="text-muted">&middot; <?= htmlspecialchars($p['observacao']) ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <?php if (!in_array($plano['status'], ['concluido', 'cancelado'], true)): ?>
+                                                    <form action="/PlanoCompra/excluirParcela/<?= (int) $p['id'] ?>" method="POST" class="d-inline">
+                                                        <?= \App\Library\Csrf::getHiddenField() ?>
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                            onclick="return confirm('Remover esta parcela?')">Remover</button>
+                                                    </form>
+                                                <?php endif; ?>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     <?php endif; ?>
 
                     <?php if (!empty($plano['produto_url'])): ?>
