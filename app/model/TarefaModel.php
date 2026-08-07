@@ -8,6 +8,14 @@ class TarefaModel extends BaseModel
     const STATUS_EM_ANDAMENTO = 'em_andamento';
     const STATUS_CONCLUIDO    = 'concluido';
 
+    // Campos editaveis via /Tarefa/atualizar. status fica de fora de proposito
+    // -- mudanca de status so pode acontecer via moverStatus() (RN04), que
+    // valida a transicao. Deixar status aqui abriria brecha pra pular etapas
+    // via POST direto (mesma licao do mass-assignment do PlanoCompra).
+    private const CAMPOS_EDITAVEIS = [
+        'titulo', 'descricao', 'responsavel_id', 'data_limite',
+    ];
+
     // RN04: mapa de transições válidas do Kanban. A chave é o status atual,
     // o valor é a lista de status para onde ele pode ir a partir dali.
     // Permite tanto avançar quanto voltar uma casa (ex: reabrir uma tarefa
@@ -140,6 +148,38 @@ class TarefaModel extends BaseModel
             'concluida_em' => $concluidaEm,
             'id'           => $tarefaId,
         ]);
+
+        return true;
+    }
+
+    /**
+     * atualizar
+     * Edita titulo/descricao(anotacoes)/responsavel/prazo de uma tarefa ja
+     * existente. Nao mexe em status -- isso e responsabilidade exclusiva de
+     * moverStatus() (RN04).
+     *
+     * @param int $id
+     * @param array $dados
+     * @return bool
+     */
+    public function atualizar(int $id, array $dados): bool
+    {
+        $dadosPermitidos = array_intersect_key($dados, array_flip(self::CAMPOS_EDITAVEIS));
+
+        if (empty($dadosPermitidos)) {
+            return false;
+        }
+
+        $sets   = [];
+        $params = ['id' => $id];
+
+        foreach ($dadosPermitidos as $campo => $valor) {
+            $sets[] = "{$campo} = :{$campo}";
+            $params[$campo] = $valor;
+        }
+
+        $sql = "UPDATE tarefas SET " . implode(', ', $sets) . " WHERE id = :id";
+        $this->connDb->update($sql, $params);
 
         return true;
     }

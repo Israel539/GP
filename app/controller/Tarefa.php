@@ -83,6 +83,51 @@ class Tarefa extends BaseController
     }
 
     /**
+     * atualizar
+     * URL: /Tarefa/atualizar/{tarefaId} (POST)
+     * Edita titulo, anotacoes (descricao), responsavel e prazo. Qualquer
+     * participante do projeto pode editar (mesmo criterio de autorizacao
+     * usado pra mover a tarefa no quadro) -- e diferente de excluir(), que
+     * e restrito ao responsavel.
+     *
+     * @return void
+     */
+    public function atualizar()
+    {
+        $tarefaId = (int) $this->request->getAction();
+        $tarefa   = $this->model->buscarPorId($tarefaId);
+
+        if (count($tarefa) === 0) {
+            Session::set('msgError', 'Tarefa nao encontrada.');
+            return header("Location: /Projeto");
+        }
+
+        $projetoId = (int) $tarefa['projeto_id'];
+        $usuario   = $this->usuarioLogado();
+
+        if (!$this->autorizado($projetoId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        $post = $this->request->getPost();
+
+        if (!$this->model->validate($post)) {
+            Session::set('msgError', 'Verifique os campos destacados e tente novamente.');
+            return header("Location: /Projeto/kanban/{$projetoId}");
+        }
+
+        $this->model->atualizar($tarefaId, [
+            'titulo'         => $post['titulo'],
+            'descricao'      => $post['descricao'] ?? null,
+            'responsavel_id' => !empty($post['responsavel_id']) ? (int) $post['responsavel_id'] : null,
+            'data_limite'    => !empty($post['data_limite']) ? $post['data_limite'] : null,
+        ]);
+
+        Session::set('msgSucesso', 'Tarefa atualizada.');
+        return header("Location: /Projeto/kanban/{$projetoId}");
+    }
+
+    /**
      * excluir
      * Permite que apenas o responsavel da tarefa a exclua dentro do projeto.
      *

@@ -97,6 +97,18 @@ include __DIR__ . '/comuns/header.php'; ?>
                         <button type="submit" class="btn btn-primary btn-sm w-100">Adicionar</button>
                     </div>
                 </div>
+
+                <!-- Anotacoes fica escondida por padrao pra nao poluir o
+                     formulario -- so aparece se a pessoa quiser usar. -->
+                <div class="mt-2">
+                    <a class="small" data-bs-toggle="collapse" href="#anotacoesNovaTarefa" role="button">
+                        <i class="bi bi-plus-circle"></i> Adicionar anotacoes
+                    </a>
+                    <div class="collapse mt-1" id="anotacoesNovaTarefa">
+                        <textarea name="descricao" class="form-control form-control-sm" rows="3"
+                            placeholder="Detalhes, links, o que for preciso anotar sobre essa tarefa..."></textarea>
+                    </div>
+                </div>
             </form>
 
             <div class="row g-3">
@@ -134,6 +146,9 @@ include __DIR__ . '/comuns/header.php'; ?>
                                         <div class="card-body p-2">
                                             <strong><?= htmlspecialchars($tarefa['titulo']) ?></strong>
                                             <?= $badgeHtml ?>
+                                            <?php if (!empty($tarefa['descricao'])): ?>
+                                                <i class="bi bi-card-text text-muted small" title="Tem anotacoes"></i>
+                                            <?php endif; ?>
                                             <?php if (!empty($tarefa['responsavel_nome'])): ?>
                                                 <div class="small text-muted"><?= htmlspecialchars($tarefa['responsavel_nome']) ?></div>
                                             <?php endif; ?>
@@ -141,7 +156,12 @@ include __DIR__ . '/comuns/header.php'; ?>
                                                 <div class="small text-muted">Prazo: <?= htmlspecialchars($tarefa['data_limite']) ?></div>
                                             <?php endif; ?>
 
-                                            <div class="mt-2 d-flex gap-1">
+                                            <div class="mt-2 d-flex gap-1 flex-wrap">
+                                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                    data-bs-toggle="modal" data-bs-target="#tarefaModal<?= (int) $tarefa['id'] ?>">
+                                                    <i class="bi bi-eye"></i> Ver
+                                                </button>
+
                                                 <?php if ($statusColuna === 'a_fazer'): ?>
                                                     <?= botaoMover($tarefa['id'], 'em_andamento', 'Iniciar') ?>
                                                 <?php elseif ($statusColuna === 'em_andamento'): ?>
@@ -157,6 +177,57 @@ include __DIR__ . '/comuns/header.php'; ?>
                                                         <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Excluir esta tarefa?');">Excluir</button>
                                                     </form>
                                                 <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Modal de ver/editar tarefa -- anotacoes so aparecem aqui dentro,
+                                         nao no card, pra nao poluir o quadro visualmente. -->
+                                    <div class="modal fade" id="tarefaModal<?= (int) $tarefa['id'] ?>" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <form action="/Tarefa/atualizar/<?= (int) $tarefa['id'] ?>" method="POST">
+                                                    <?= \App\Library\Csrf::getHiddenField() ?>
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Detalhes da tarefa</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="mb-2">
+                                                            <label class="form-label small">Titulo</label>
+                                                            <input type="text" name="titulo" class="form-control form-control-sm"
+                                                                value="<?= htmlspecialchars($tarefa['titulo']) ?>" required minlength="3" maxlength="150">
+                                                        </div>
+                                                        <div class="row g-2 mb-2">
+                                                            <div class="col-md-6">
+                                                                <label class="form-label small">Responsavel</label>
+                                                                <select name="responsavel_id" class="form-select form-select-sm">
+                                                                    <option value="">-- ninguem --</option>
+                                                                    <?php foreach ($colaboradores as $c): ?>
+                                                                        <option value="<?= (int) $c['id'] ?>"
+                                                                            <?= (int) $tarefa['responsavel_id'] === (int) $c['id'] ? 'selected' : '' ?>>
+                                                                            <?= htmlspecialchars($c['nome']) ?>
+                                                                        </option>
+                                                                    <?php endforeach; ?>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label small">Prazo</label>
+                                                                <input type="date" name="data_limite" class="form-control form-control-sm"
+                                                                    value="<?= htmlspecialchars($tarefa['data_limite'] ?? '') ?>">
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label class="form-label small">Anotacoes</label>
+                                                            <textarea name="descricao" class="form-control form-control-sm" rows="6"
+                                                                placeholder="Detalhes, links, o que for preciso anotar sobre essa tarefa..."><?= htmlspecialchars($tarefa['descricao'] ?? '') ?></textarea>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                                                        <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+                                                    </div>
+                                                </form>
                                             </div>
                                         </div>
                                     </div>
