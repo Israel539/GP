@@ -9,6 +9,7 @@ class Recorrencia extends BaseController
     protected $model;
     protected $contaModel;
     protected $categoriaModel;
+    protected $cartaoModel;
 
     public function __construct()
     {
@@ -16,6 +17,7 @@ class Recorrencia extends BaseController
         $this->model = $this->model('Recorrencia');
         $this->contaModel = $this->model('Conta');
         $this->categoriaModel = $this->model('Categoria');
+        $this->cartaoModel = $this->model('CartaoCredito');
         $this->helper("crud");
     }
 
@@ -40,8 +42,9 @@ class Recorrencia extends BaseController
         $usuario = $this->usuarioLogado();
         $contas = $this->contaModel->listarPorUsuario((int) $usuario['id']);
         $categorias = $this->categoriaModel->listarDisponiveis((int) $usuario['id']);
+        $cartoes = $this->cartaoModel->listarPorUsuario((int) $usuario['id']);
 
-        return $this->view('recorrenciaForm', ['contas' => $contas, 'categorias' => $categorias]);
+        return $this->view('recorrenciaForm', ['contas' => $contas, 'categorias' => $categorias, 'cartoes' => $cartoes]);
     }
 
     /**
@@ -61,8 +64,9 @@ class Recorrencia extends BaseController
         $recorrencia = $this->model->buscarPorId($id);
         $contas = $this->contaModel->listarPorUsuario((int) $usuario['id']);
         $categorias = $this->categoriaModel->listarDisponiveis((int) $usuario['id']);
+        $cartoes = $this->cartaoModel->listarPorUsuario((int) $usuario['id']);
 
-        return $this->view('recorrenciaForm', ['recorrencia' => $recorrencia, 'contas' => $contas, 'categorias' => $categorias]);
+        return $this->view('recorrenciaForm', ['recorrencia' => $recorrencia, 'contas' => $contas, 'categorias' => $categorias, 'cartoes' => $cartoes]);
     }
 
     /**
@@ -85,6 +89,11 @@ class Recorrencia extends BaseController
 
         if (!$this->model->validate($dados)) {
             Session::set('msgError', 'Verifique os campos destacados e tente novamente.');
+            return header('Location: /Recorrencia/form');
+        }
+
+        if (($dados['modalidade'] ?? '') === 'credito' && empty($dados['cartao_id'])) {
+            Session::set('msgError', 'Selecione o cartao para uma recorrencia de credito.');
             return header('Location: /Recorrencia/form');
         }
 
@@ -112,6 +121,11 @@ class Recorrencia extends BaseController
 
         if (!$this->model->validate($dados)) {
             Session::set('msgError', 'Verifique os campos destacados e tente novamente.');
+            return header("Location: /Recorrencia/editar/{$id}");
+        }
+
+        if (($dados['modalidade'] ?? '') === 'credito' && empty($dados['cartao_id'])) {
+            Session::set('msgError', 'Selecione o cartao para uma recorrencia de credito.');
             return header("Location: /Recorrencia/editar/{$id}");
         }
 
@@ -159,6 +173,38 @@ class Recorrencia extends BaseController
         $this->model->excluir($id);
 
         Session::set('msgSucesso', 'Recorrencia excluida.');
+        return header('Location: /Recorrencia');
+    }
+
+    /**
+     * gerarAgora
+     * URL: /Recorrencia/gerarAgora (POST)
+     * Roda a mesma logica do cron (scripts/gerar_transacoes_recorrentes.php),
+     * mas so pras recorrencias do usuario logado -- util pra testar sem
+     * precisar configurar o Agendador de Tarefas do Windows, e pra quem
+     * esquecer de configurar o cron nao ficar sem lancar nada no mes.
+     *
+     * @return void
+     */
+    public function gerarAgora()
+    {
+        $usuario = $this->usuarioLogado();
+        $transacaoModel = $this->model('Transacao');
+
+        $resultados = $this->model->gerarPendentes($transacaoModel, (int) $usuario['id']);
+
+        $okCount = count(array_filter($resultados, fn ($r) => $r['status'] === 'ok'));
+        $falhas  = array_filter($resultados, fn ($r) => $r['status'] !== 'ok');
+
+        if (empty($resultados)) {
+            Session::set('msgSucesso', 'Nenhuma recorrencia pendente pra gerar hoje.');
+        } elseif (empty($falhas)) {
+            Session::set('msgSucesso', "{$okCount} transacao(oes) lancada(s) a partir das recorrencias.");
+        } else {
+            $primeiraFalha = reset($falhas);
+            Session::set('msgError', "{$okCount} lancada(s), mas \"{$primeiraFalha['descricao']}\" falhou: {$primeiraFalha['mensagem']}");
+        }
+
         return header('Location: /Recorrencia');
     }
 

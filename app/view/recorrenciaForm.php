@@ -61,7 +61,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                             <div class="row g-2 mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Modalidade</label>
-                                    <select name="modalidade" class="form-select">
+                                    <select name="modalidade" id="modalidadeRecorrencia" class="form-select" onchange="alternarCampoCartaoRecorrencia()">
                                         <?php foreach (['pix' => 'Pix', 'boleto' => 'Boleto', 'debito' => 'Débito', 'credito' => 'Crédito', 'dinheiro' => 'Dinheiro', 'outro' => 'Outro'] as $valor => $rotulo): ?>
                                             <option value="<?= $valor ?>" <?= ($recorrencia['modalidade'] ?? 'outro') === $valor ? 'selected' : '' ?>><?= $rotulo ?></option>
                                         <?php endforeach; ?>
@@ -78,6 +78,19 @@ include __DIR__ . '/comuns/header.php'; ?>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
+                            </div>
+
+                            <div class="mb-3" id="campoCartaoRecorrencia" style="display: <?= ($recorrencia['modalidade'] ?? '') === 'credito' ? 'block' : 'none' ?>;">
+                                <label class="form-label">Cartao (obrigatorio p/ credito)</label>
+                                <select name="cartao_id" class="form-select">
+                                    <option value="">-- selecione --</option>
+                                    <?php foreach ($cartoes as $cartao): ?>
+                                        <option value="<?= (int) $cartao['id'] ?>"
+                                            <?= (int) ($recorrencia['cartao_id'] ?? 0) === (int) $cartao['id'] ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($cartao['nome']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
 
                             <div class="mb-3">
@@ -113,5 +126,12 @@ include __DIR__ . '/comuns/header.php'; ?>
         </div>
     </div>
 </div>
+
+<script>
+function alternarCampoCartaoRecorrencia() {
+    var modalidade = document.getElementById('modalidadeRecorrencia').value;
+    document.getElementById('campoCartaoRecorrencia').style.display = (modalidade === 'credito') ? 'block' : 'none';
+}
+</script>
 
 <?php include __DIR__ . '/comuns/footer.php'; ?>

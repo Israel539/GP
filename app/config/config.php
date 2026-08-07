@@ -39,6 +39,23 @@
     ]);
 
     // ------------------------------------------------------------------
+    // WHATSAPP (Meta Cloud API)
+    // ------------------------------------------------------------------
+    // Precisa de um app no Meta for Developers (produto "WhatsApp") com um
+    // numero de teste (ou numero real verificado) e um template de mensagem
+    // aprovado -- ver app/config/README-whatsapp.md para o passo a passo.
+    //
+    // Se WHATSAPP_TOKEN ficar vazio, o WhatsappGateway nao tenta enviar nada
+    // e so registra um aviso -- mesmo espirito do MAIL_USER vazio acima.
+    defined("WHATSAPP_CONF") || define("WHATSAPP_CONF", [
+        "WHATSAPP_TOKEN"           => \App\Library\Env::get('WHATSAPP_TOKEN', ''),
+        "WHATSAPP_PHONE_NUMBER_ID" => \App\Library\Env::get('WHATSAPP_PHONE_NUMBER_ID', ''),
+        "WHATSAPP_API_VERSION"     => \App\Library\Env::get('WHATSAPP_API_VERSION', 'v21.0'),
+        "WHATSAPP_TEMPLATE_NAME"   => \App\Library\Env::get('WHATSAPP_TEMPLATE_NAME', 'lembrete_compromisso'),
+        "WHATSAPP_TEMPLATE_LANG"   => \App\Library\Env::get('WHATSAPP_TEMPLATE_LANG', 'pt_BR'),
+    ]);
+
+    // ------------------------------------------------------------------
     // ROTEAMENTO
     // ------------------------------------------------------------------
 

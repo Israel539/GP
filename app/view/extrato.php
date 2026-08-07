@@ -80,6 +80,16 @@ include __DIR__ . '/comuns/header.php'; ?>
                             </select>
                         </div>
 
+                        <div class="mb-2" id="campoParcelas" style="display:none;">
+                            <label class="form-label small">Parcelas</label>
+                            <select name="parcelas" class="form-select form-select-sm">
+                                <?php for ($i = 1; $i <= 24; $i++): ?>
+                                    <option value="<?= $i ?>"><?= $i === 1 ? 'A vista (1x)' : "{$i}x" ?></option>
+                                <?php endfor; ?>
+                            </select>
+                            <div class="form-text">O valor digitado acima e o TOTAL da compra -- cada parcela cai na fatura do seu proprio mes.</div>
+                        </div>
+
                         <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="form-label small">Data do fato</label>
@@ -145,7 +155,11 @@ include __DIR__ . '/comuns/header.php'; ?>
                         <button type="submit" class="btn btn-outline-secondary btn-sm w-100">Filtrar</button>
                     </div>
                 </div>
-                
+
+                <!-- Exportar reusa os mesmos campos de filtro acima (formaction
+                     troca so o destino do submit, sem precisar de JS nem de
+                     duplicar o formulario) -- entao exporta exatamente o
+                     periodo/categoria que estiver selecionado no momento. -->
                 <div class="mt-2 text-end">
                     <button type="submit" formaction="/Transacao/exportarCsv/<?= (int) $conta['id'] ?>"
                         class="btn btn-outline-success btn-sm">
@@ -171,8 +185,15 @@ include __DIR__ . '/comuns/header.php'; ?>
                                     <div class="small text-muted">
                                         <?= htmlspecialchars($t['data_fato_gerador']) ?>
                                         &middot; <?= htmlspecialchars($t['modalidade']) ?>
+                                        <?php if (!empty($t['parcela_total']) && (int) $t['parcela_total'] > 1): ?>
+                                            <span class="badge bg-warning text-dark" title="Parcela <?= (int) $t['parcela_atual'] ?> de <?= (int) $t['parcela_total'] ?>">
+                                                <?= (int) $t['parcela_atual'] ?>/<?= (int) $t['parcela_total'] ?>
+                                            </span>
+                                        <?php endif; ?>
                                         <?php if ($imutavel): ?>
                                             <span class="badge bg-secondary" title="Importado via Open Finance -- RN07: so categoria/tags editaveis">🔒 API</span>
+                                        <?php elseif ($t['origem'] === 'recorrente'): ?>
+                                            <span class="badge bg-info text-dark" title="Lancada automaticamente por uma transacao recorrente">🔁 Recorrente</span>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -222,7 +243,16 @@ include __DIR__ . '/comuns/header.php'; ?>
 <script>
 function alternarCampoCartao() {
     var modalidade = document.getElementById('modalidade').value;
-    document.getElementById('campoCartao').style.display = (modalidade === 'credito') ? 'block' : 'none';
+    var ehCredito = (modalidade === 'credito');
+    document.getElementById('campoCartao').style.display = ehCredito ? 'block' : 'none';
+    document.getElementById('campoParcelas').style.display = ehCredito ? 'block' : 'none';
+
+    // Fora do credito, parcelamento nao existe -- reseta pra "1x" (a vista)
+    // pra nao mandar um "parcelas=3" escondido junto com uma modalidade que
+    // nao suporta parcelamento.
+    if (!ehCredito) {
+        document.querySelector('select[name="parcelas"]').value = '1';
+    }
 }
 </script>
 

@@ -72,8 +72,8 @@ class UsuarioModel extends BaseModel
      */
     public function insert(array $dados): int
     {
-        $sql = "INSERT INTO usuarios (nome, email, senha, cpf, data_nascimento, nivel, statusRegistro)
-                VALUES (:nome, :email, :senha, :cpf, :data_nascimento, :nivel, :statusRegistro)";
+        $sql = "INSERT INTO usuarios (nome, email, senha, cpf, data_nascimento, telefone_whats, nivel, statusRegistro)
+                VALUES (:nome, :email, :senha, :cpf, :data_nascimento, :telefone_whats, :nivel, :statusRegistro)";
 
         return $this->connDb->insert($sql, [
             'nome'            => $dados['nome'],
@@ -81,6 +81,7 @@ class UsuarioModel extends BaseModel
             'senha'           => password_hash($dados['senha'], PASSWORD_DEFAULT),
             'cpf'             => $dados['cpf'] ?? null,
             'data_nascimento' => $dados['data_nascimento'] ?? null,
+            'telefone_whats'  => !empty($dados['telefone_whats']) ? preg_replace('/\D/', '', $dados['telefone_whats']) : null,
             'nivel'           => $dados['nivel'] ?? self::NIVEL_COMUM,
             'statusRegistro'  => self::STATUS_ATIVO,
         ]);

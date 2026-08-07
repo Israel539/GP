@@ -1,4 +1,10 @@
-<?php include __DIR__ . '/comuns/header.php'; ?>
+<?php
+/** @var array<string,mixed>|null $compromisso */
+/** @var string|null $dataPreenchida */
+$compromisso = $compromisso ?? null;
+$dataPreenchida = $dataPreenchida ?? null;
+include __DIR__ . '/comuns/header.php';
+?>
 
 <div class="container py-5">
     <div class="row justify-content-center">
@@ -71,15 +77,10 @@
 
                         <div class="mb-3">
                             <label class="form-label d-block">Notificar antes de vencer</label>
-                            <div class="form-check form-check-inline">
+                            <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="notificar_email" name="notificar_email" value="1"
                                     <?= !empty($compromisso['notificar_email']) ? 'checked' : '' ?>>
                                 <label class="form-check-label" for="notificar_email">E-mail</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" id="notificar_whatsapp" name="notificar_whatsapp" value="1"
-                                    <?= !empty($compromisso['notificar_whatsapp']) ? 'checked' : '' ?>>
-                                <label class="form-check-label" for="notificar_whatsapp">WhatsApp</label>
                             </div>
                             <div class="form-text">O aviso e enviado 1 dia antes do horario de inicio (RN03).</div>
                         </div>

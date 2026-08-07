@@ -52,7 +52,17 @@
                                 <div class="col-md-4">
                                     <label for="data" class="form-label">Data Nascimento</label>
                                     <input type="date" class="form-control" id="data" name="data"
-                                        value="<?= valorAntigo('data') ?>">
+                                    value="<?= valorAntigo('data') ?>">
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="telefone_whats" class="form-label">WhatsApp</label>
+                                    <input type="text" class="form-control" id="telefone_whats" name="telefone_whats"
+                                        value="<?= valorAntigo('telefone_whats') ?>"
+                                        placeholder="(00) 00000-0000">
+                                    <div class="form-text">Opcional -- usado pra mandar lembrete de compromisso (RN03).</div>
                                 </div>
                             </div>
 

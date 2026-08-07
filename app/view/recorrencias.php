@@ -9,9 +9,20 @@ include __DIR__ . '/comuns/header.php'; ?>
             <p class="text-muted small mb-0">Contas fixas (aluguel, assinatura) lançadas automaticamente todo mês.</p>
         </div>
         <div class="col-4 text-end">
+            <form action="/Recorrencia/gerarAgora" method="POST" class="d-inline">
+                <?= \App\Library\Csrf::getHiddenField() ?>
+                <button type="submit" class="btn btn-outline-success">
+                    <i class="bi bi-arrow-repeat"></i> Gerar agora
+                </button>
+            </form>
             <a href="/Recorrencia/form" class="btn btn-primary">+ Nova recorrência</a>
         </div>
     </div>
+
+    <p class="text-muted small">
+        "Gerar agora" roda a mesma varredura do agendamento automatico (cron) na hora,
+        pra quem quiser lançar uma recorrência pendente sem esperar.
+    </p>
 
     <?= mensagens() ?>
 

@@ -12,7 +12,7 @@ class RecorrenciaModel extends BaseModel
     ];
 
     private const CAMPOS_EDITAVEIS = [
-        'descricao', 'valor', 'tipo', 'modalidade', 'categoria_id',
+        'descricao', 'valor', 'tipo', 'modalidade', 'categoria_id', 'cartao_id',
         'dia_mes', 'data_inicio', 'data_fim',
     ];
 
@@ -25,13 +25,14 @@ class RecorrenciaModel extends BaseModel
     public function criar(array $dados, int $contaId): int
     {
         $sql = "INSERT INTO transacoes_recorrentes
-                    (conta_id, categoria_id, descricao, valor, tipo, modalidade, dia_mes, data_inicio, data_fim)
+                    (conta_id, categoria_id, cartao_id, descricao, valor, tipo, modalidade, dia_mes, data_inicio, data_fim)
                 VALUES
-                    (:conta_id, :categoria_id, :descricao, :valor, :tipo, :modalidade, :dia_mes, :data_inicio, :data_fim)";
+                    (:conta_id, :categoria_id, :cartao_id, :descricao, :valor, :tipo, :modalidade, :dia_mes, :data_inicio, :data_fim)";
 
         return $this->connDb->insert($sql, [
             'conta_id'     => $contaId,
             'categoria_id' => !empty($dados['categoria_id']) ? $dados['categoria_id'] : null,
+            'cartao_id'    => !empty($dados['cartao_id']) ? $dados['cartao_id'] : null,
             'descricao'    => $dados['descricao'],
             'valor'        => $dados['valor'],
             'tipo'         => $dados['tipo'],
@@ -103,6 +104,9 @@ class RecorrenciaModel extends BaseModel
 
         if (array_key_exists('categoria_id', $dadosPermitidos) && empty($dadosPermitidos['categoria_id'])) {
             $dadosPermitidos['categoria_id'] = null;
+        }
+        if (array_key_exists('cartao_id', $dadosPermitidos) && empty($dadosPermitidos['cartao_id'])) {
+            $dadosPermitidos['cartao_id'] = null;
         }
         if (array_key_exists('data_fim', $dadosPermitidos) && empty($dadosPermitidos['data_fim'])) {
             $dadosPermitidos['data_fim'] = null;
@@ -177,5 +181,73 @@ class RecorrenciaModel extends BaseModel
     {
         $sql = "UPDATE transacoes_recorrentes SET ultima_geracao = CURDATE() WHERE id = :id";
         $this->connDb->update($sql, ['id' => $id]);
+    }
+
+    /**
+     * gerarPendentes
+     * Efetivamente cria as transacoes no financeiro pra cada recorrencia
+     * elegivel deste mes -- usado tanto pelo cron (scripts/gerar_transacoes_recorrentes.php)
+     * quanto pelo botao manual "Gerar agora" na tela de Recorrencias, pra
+     * garantir que os dois caminhos tenham exatamente o mesmo comportamento.
+     *
+     * @param \App\Model\TransacaoModel $transacaoModel
+     * @param int|null $usuarioId Se informado, so gera recorrencias desse
+     *        usuario (usado pelo botao manual -- o cron passa null pra
+     *        varrer todo mundo de uma vez).
+     * @return array Lista de ['id', 'descricao', 'status' => 'ok'|'falhou', 'mensagem', 'transacao_id'?]
+     */
+    public function gerarPendentes(\App\Model\TransacaoModel $transacaoModel, ?int $usuarioId = null): array
+    {
+        $paraGerar = $this->listarParaGerar();
+        $resultado = [];
+
+        foreach ($paraGerar as $recorrencia) {
+            if ($usuarioId !== null && !$this->pertenceAoUsuario((int) $recorrencia['id'], $usuarioId)) {
+                continue;
+            }
+
+            $ultimoDiaDoMes = (int) date('t');
+            $dia            = min((int) $recorrencia['dia_mes'], $ultimoDiaDoMes);
+            $dataFato       = date('Y-m-') . str_pad((string) $dia, 2, '0', STR_PAD_LEFT);
+
+            $dadosTransacao = [
+                'conta_id'          => $recorrencia['conta_id'],
+                'categoria_id'      => $recorrencia['categoria_id'],
+                'cartao_id'         => $recorrencia['cartao_id'],
+                'descricao'         => $recorrencia['descricao'] . ' (recorrente)',
+                'valor'             => $recorrencia['valor'],
+                'tipo'              => $recorrencia['tipo'],
+                'modalidade'        => $recorrencia['modalidade'],
+                'data_fato_gerador' => $dataFato,
+                'data_competencia'  => $dataFato,
+                'status'            => 'confirmada',
+            ];
+
+            try {
+                $transacaoId = $transacaoModel->criarManual($dadosTransacao, 'recorrente');
+                $this->marcarGerada((int) $recorrencia['id']);
+
+                $resultado[] = [
+                    'id' => $recorrencia['id'], 'descricao' => $recorrencia['descricao'],
+                    'status' => 'ok', 'mensagem' => "Lancada em {$dataFato}.", 'transacao_id' => $transacaoId,
+                ];
+            } catch (\InvalidArgumentException $ex) {
+                // Nao marca como gerada -- assim que a recorrencia for
+                // corrigida (ex: escolher um cartao), o proximo ciclo gera
+                // normalmente em vez de pular o mes.
+                $resultado[] = [
+                    'id' => $recorrencia['id'], 'descricao' => $recorrencia['descricao'],
+                    'status' => 'falhou', 'mensagem' => $ex->getMessage(),
+                ];
+            } catch (\Throwable $ex) {
+                error_log('[RecorrenciaModel::gerarPendentes] Recorrencia #' . $recorrencia['id'] . ': ' . $ex->getMessage());
+                $resultado[] = [
+                    'id' => $recorrencia['id'], 'descricao' => $recorrencia['descricao'],
+                    'status' => 'erro', 'mensagem' => $ex->getMessage(),
+                ];
+            }
+        }
+
+        return $resultado;
     }
 }

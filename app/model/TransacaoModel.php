@@ -30,7 +30,19 @@ class TransacaoModel extends BaseModel
      *                      'cartao_id' obrigatorio se modalidade = credito)
      * @return int
      */
-    public function criarManual(array $dados): int
+    /**
+     * criarManual
+     *
+     * @param array $dados
+     * @param string $origem 'manual' (lancamento avulso do usuario) ou
+     *        'recorrente' (gerada automaticamente pelo cron de recorrencias
+     *        -- ver scripts/gerar_transacoes_recorrentes.php). O nome do
+     *        metodo ficou "criarManual" por causa do codigo existente que ja
+     *        chama ele assim pro caso avulso; o parametro so existe pra nao
+     *        duplicar toda a logica de fatura/RN09 num metodo separado.
+     * @return int
+     */
+    public function criarManual(array $dados, string $origem = 'manual'): int
     {
         $faturaId = null;
 
@@ -50,10 +62,12 @@ class TransacaoModel extends BaseModel
 
         $sql = "INSERT INTO transacoes
                     (conta_id, categoria_id, fatura_id, descricao, valor, tipo, modalidade,
-                     data_fato_gerador, data_competencia, status, origem)
+                     data_fato_gerador, data_competencia, status, origem,
+                     parcela_atual, parcela_total, grupo_parcela_id)
                 VALUES
                     (:conta_id, :categoria_id, :fatura_id, :descricao, :valor, :tipo, :modalidade,
-                     :data_fato_gerador, :data_competencia, :status, 'manual')";
+                     :data_fato_gerador, :data_competencia, :status, :origem,
+                     :parcela_atual, :parcela_total, :grupo_parcela_id)";
 
         return $this->connDb->insert($sql, [
             'conta_id'          => $dados['conta_id'],
@@ -66,7 +80,78 @@ class TransacaoModel extends BaseModel
             'data_fato_gerador' => $dados['data_fato_gerador'],
             'data_competencia'  => $dados['data_competencia'] ?? $dados['data_fato_gerador'],
             'status'            => $dados['status'] ?? 'confirmada',
+            'origem'            => $origem,
+            'parcela_atual'     => $dados['parcela_atual'] ?? null,
+            'parcela_total'     => $dados['parcela_total'] ?? null,
+            'grupo_parcela_id'  => $dados['grupo_parcela_id'] ?? null,
         ]);
+    }
+
+    /**
+     * criarParcelada
+     * Compra parcelada no credito: cria UMA transacao por parcela, cada uma
+     * caindo na fatura do seu proprio mes (RN09 continua valendo por
+     * parcela -- nao existe excecao nova aqui, e so N transacoes normais
+     * ligadas pelo mesmo grupo_parcela_id).
+     *
+     * O valor de cada parcela e o total dividido igualmente, com a ULTIMA
+     * parcela absorvendo a sobra de arredondamento (ex: R$100 em 3x vira
+     * 33,33 + 33,33 + 33,34 -- nunca 33,33 x3 = 99,99 deixando 1 centavo
+     * sumido).
+     *
+     * @param array $dados Mesmos campos de criarManual() (conta_id, categoria_id,
+     *        cartao_id, descricao, valor = VALOR TOTAL da compra, tipo, modalidade
+     *        deve ser 'credito', data_fato_gerador, data_competencia = mes da 1a parcela)
+     * @param int $numParcelas 2 a 24 (validado no Controller)
+     * @return array Lista de ids das transacoes criadas, na ordem das parcelas
+     */
+    public function criarParcelada(array $dados, int $numParcelas): array
+    {
+        if (($dados['modalidade'] ?? '') !== 'credito') {
+            throw new \InvalidArgumentException('Parcelamento so e permitido para modalidade credito.');
+        }
+
+        if (empty($dados['cartao_id'])) {
+            throw new \InvalidArgumentException('cartao_id e obrigatorio para transacao de modalidade credito.');
+        }
+
+        $valorTotal      = round((float) $dados['valor'], 2);
+        $valorParcela    = round($valorTotal / $numParcelas, 2);
+        $valorUltima     = round($valorTotal - ($valorParcela * ($numParcelas - 1)), 2);
+        $grupoParcelaId  = self::gerarUuid();
+        $dataCompetencia = $dados['data_competencia'] ?? $dados['data_fato_gerador'];
+
+        $idsGerados = [];
+
+        for ($i = 1; $i <= $numParcelas; $i++) {
+            $dadosParcela = $dados;
+            $dadosParcela['valor']            = ($i === $numParcelas) ? $valorUltima : $valorParcela;
+            $dadosParcela['data_competencia']  = date('Y-m-d', strtotime("{$dataCompetencia} +" . ($i - 1) . " months"));
+            $dadosParcela['descricao']         = $dados['descricao'] . " ({$i}/{$numParcelas})";
+            $dadosParcela['parcela_atual']     = $i;
+            $dadosParcela['parcela_total']     = $numParcelas;
+            $dadosParcela['grupo_parcela_id']  = $grupoParcelaId;
+
+            $idsGerados[] = $this->criarManual($dadosParcela);
+        }
+
+        return $idsGerados;
+    }
+
+    /**
+     * gerarUuid
+     * UUID v4 simples, sem depender de extensao extra -- so pra ter um
+     * identificador unico curto que agrupa as parcelas de uma mesma compra.
+     *
+     * @return string
+     */
+    private static function gerarUuid(): string
+    {
+        $dados = random_bytes(16);
+        $dados[6] = chr(ord($dados[6]) & 0x0f | 0x40);
+        $dados[8] = chr(ord($dados[8]) & 0x3f | 0x80);
+
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($dados), 4));
     }
 
     /**

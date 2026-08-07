@@ -251,26 +251,51 @@ class Transacao extends BaseController
             return header("Location: /Transacao/extrato/{$contaId}");
         }
 
+        $numParcelas = (int) ($post['parcelas'] ?? 1);
+        if ($numParcelas < 1 || $numParcelas > 24) {
+            Session::set('msgError', 'Numero de parcelas invalido (use de 1 a 24).');
+            return header("Location: /Transacao/extrato/{$contaId}");
+        }
+
+        $dadosTransacao = [
+            'conta_id'          => $contaId,
+            'categoria_id'      => !empty($post['categoria_id']) ? (int) $post['categoria_id'] : null,
+            'cartao_id'         => !empty($post['cartao_id']) ? (int) $post['cartao_id'] : null,
+            'descricao'         => $post['descricao'],
+            'valor'             => abs((float) str_replace(',', '.', $post['valor'])),
+            'tipo'              => $post['tipo'],
+            'modalidade'        => $post['modalidade'] ?? 'outro',
+            'data_fato_gerador' => $post['data_fato_gerador'],
+            'data_competencia'  => $post['data_competencia'] ?? $post['data_fato_gerador'],
+        ];
+
         try {
-            $transacaoId = $this->model->criarManual([
-                'conta_id'          => $contaId,
-                'categoria_id'      => !empty($post['categoria_id']) ? (int) $post['categoria_id'] : null,
-                'cartao_id'         => !empty($post['cartao_id']) ? (int) $post['cartao_id'] : null,
-                'descricao'         => $post['descricao'],
-                'valor'             => abs((float) str_replace(',', '.', $post['valor'])),
-                'tipo'              => $post['tipo'],
-                'modalidade'        => $post['modalidade'] ?? 'outro',
-                'data_fato_gerador' => $post['data_fato_gerador'],
-                'data_competencia'  => $post['data_competencia'] ?? $post['data_fato_gerador'],
-            ]);
+            if ($numParcelas > 1) {
+                // So faz sentido parcelar no credito -- validate() la na
+                // model/JS ja empurra pra isso, mas confere de novo aqui
+                // porque e o Model quem efetivamente grava.
+                if (($dadosTransacao['modalidade'] ?? '') !== 'credito') {
+                    Session::set('msgError', 'Parcelamento so e permitido para modalidade credito.');
+                    return header("Location: /Transacao/extrato/{$contaId}");
+                }
+
+                $idsGerados = $this->model->criarParcelada($dadosTransacao, $numParcelas);
+            } else {
+                $idsGerados = [$this->model->criarManual($dadosTransacao)];
+            }
         } catch (\InvalidArgumentException $ex) {
             Session::set('msgError', $ex->getMessage());
             return header("Location: /Transacao/extrato/{$contaId}");
         }
 
-        $this->vincularTagsDoTexto($transacaoId, (int) $usuario['id'], $post['tags'] ?? '');
+        // Marca a tag em TODAS as parcelas geradas -- senao filtrar por tag
+        // so acharia a primeira parcela da compra, escondendo as outras.
+        foreach ($idsGerados as $idGerado) {
+            $this->vincularTagsDoTexto($idGerado, (int) $usuario['id'], $post['tags'] ?? '');
+        }
 
-        Session::set('msgSucesso', 'Transacao lancada.');
+        $mensagem = $numParcelas > 1 ? "Compra lancada em {$numParcelas}x." : 'Transacao lancada.';
+        Session::set('msgSucesso', $mensagem);
         return header("Location: /Transacao/extrato/{$contaId}");
     }
 

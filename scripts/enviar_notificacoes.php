@@ -58,18 +58,14 @@ foreach ($paraNotificarEmail as $compromisso) {
 }
 
 // ------------------------------------------------------------------
-// Canal: WHATSAPP
+// Canal: WHATSAPP -- DESATIVADO
 // ------------------------------------------------------------------
-// Ainda NAO implementado: falta escolher e configurar um gateway (WhatsApp
-// Cloud API da Meta, ou Evolution API / Z-API / ZeniAPI rodando numa VPS --
-// ver o documento de especificacao original). Por enquanto so avisa no
-// console/log e NAO marca como notificado, para que, assim que o gateway for
-// plugado aqui, esses compromissos pendentes sejam notificados normalmente
-// (nada fica perdido por causa do adiamento).
-$paraNotificarWhatsapp = $compromissoModel->listarParaNotificar('whatsapp', 24);
-
-if (count($paraNotificarWhatsapp) > 0) {
-    echo "WhatsApp: " . count($paraNotificarWhatsapp) . " compromisso(s) elegivel(is), mas o gateway ainda nao esta configurado -- nada enviado.\n";
-}
+// Voltou a ser so e-mail por decisao do projeto. O codigo do gateway
+// (app/Library/WhatsappGateway.php) continua no repositorio, so nao e mais
+// chamado daqui -- se um dia quiser reativar, e so descomentar o bloco
+// abaixo e o formulario de compromisso volta a mostrar o checkbox de novo.
+//
+// $paraNotificarWhatsapp = $compromissoModel->listarParaNotificar('whatsapp', 24);
+// foreach ($paraNotificarWhatsapp as $compromisso) { ... }
 
 echo "[" . date('Y-m-d H:i:s') . "] Varredura concluida.\n";
