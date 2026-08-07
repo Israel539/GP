@@ -73,21 +73,32 @@ class Agenda extends BaseController
         // Feriados nacionais (BrasilAPI, com cache local -- ver FeriadoService).
         // Busca tambem o ano do mes anterior/seguinte, pra cobrir os dias "de
         // fora" que o grid mostra quando o mes vira dezembro/janeiro.
-        $feriados = \App\Library\FeriadoService::doIntervaloDeAnos([
+        $anosVisiveis = [
             (int) $mesAnterior->format('Y'),
             $ano,
             (int) $mesSeguinte->format('Y'),
-        ]);
+        ];
+
+        $feriados = \App\Library\FeriadoService::doIntervaloDeAnos($anosVisiveis);
+
+        // Datas comemorativas (Dia das Maes, Namorados, etc.) -- nao sao
+        // feriado oficial, entao nao vem da API, mas sao uteis mostrar.
+        // Ver DataComemorativaService.
+        $comemorativas = [];
+        foreach (array_unique($anosVisiveis) as $anoComemorativa) {
+            $comemorativas += \App\Library\DataComemorativaService::doAno((int) $anoComemorativa);
+        }
 
         return $this->view("agendaCalendario", [
-            'ano'          => $ano,
-            'mes'          => $mes,
-            'primeiroDia'  => $primeiroDiaMes,
-            'mesAnterior'  => $mesAnterior,
-            'mesSeguinte'  => $mesSeguinte,
-            'porDia'       => $porDia,
-            'feriados'     => $feriados,
-            'hojeChave'    => $hoje->format('Y-m-d'),
+            'ano'           => $ano,
+            'mes'           => $mes,
+            'primeiroDia'   => $primeiroDiaMes,
+            'mesAnterior'   => $mesAnterior,
+            'mesSeguinte'   => $mesSeguinte,
+            'porDia'        => $porDia,
+            'feriados'      => $feriados,
+            'comemorativas' => $comemorativas,
+            'hojeChave'     => $hoje->format('Y-m-d'),
         ]);
     }
 

@@ -106,6 +106,19 @@ include __DIR__ . '/comuns/header.php'; ?>
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    .cal-comemorativa {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: #6f1d75;
+        background: #f1d9f5;
+        border-radius: 4px;
+        padding: 1px 4px;
+        margin-bottom: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
     .cal-mais {
         font-size: 0.72rem;
         color: #6c757d;
@@ -182,6 +195,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                     $foraDoMes  = (int) $cursor->format('n') !== $mes;
                     $ehHoje     = $chaveDia === $hojeChave;
                     $nomeFeriado = $feriados[$chaveDia] ?? null;
+                    $nomeComemorativa = $comemorativas[$chaveDia] ?? null;
                     $eventosDia = $porDia[$chaveDia] ?? [];
                     $limite     = 3;
                 ?>
@@ -196,6 +210,12 @@ include __DIR__ . '/comuns/header.php'; ?>
                     <?php if ($nomeFeriado): ?>
                         <span class="cal-feriado" title="Feriado nacional: <?= htmlspecialchars($nomeFeriado) ?>">
                             <i class="bi bi-flag-fill"></i> <?= htmlspecialchars($nomeFeriado) ?>
+                        </span>
+                    <?php endif; ?>
+
+                    <?php if ($nomeComemorativa): ?>
+                        <span class="cal-comemorativa" title="Data comemorativa: <?= htmlspecialchars($nomeComemorativa) ?>">
+                            <i class="bi bi-heart-fill"></i> <?= htmlspecialchars($nomeComemorativa) ?>
                         </span>
                     <?php endif; ?>
 
@@ -219,6 +239,7 @@ include __DIR__ . '/comuns/header.php'; ?>
 
     <div class="d-flex gap-3 mt-3 small text-muted flex-wrap">
         <span><span class="badge" style="background:#f8d7da;color:#b02a37;">&nbsp;&nbsp;</span> Feriado nacional</span>
+        <span><span class="badge" style="background:#f1d9f5;color:#6f1d75;">&nbsp;&nbsp;</span> Data comemorativa</span>
         <span><span class="badge" style="background:#cfe2ff;color:#084298;">&nbsp;&nbsp;</span> Reuniao presencial</span>
         <span><span class="badge" style="background:#d1e7dd;color:#0f5132;">&nbsp;&nbsp;</span> Tarefa pessoal</span>
         <span><span class="badge" style="background:#fff3cd;color:#664d03;">&nbsp;&nbsp;</span> Lembrete</span>
