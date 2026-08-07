@@ -8,6 +8,10 @@ include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container-fluid py-4">
 
+    <a href="/Projeto" class="btn btn-outline-secondary btn-sm mb-3">
+        <i class="bi bi-arrow-left"></i> Voltar para projetos
+    </a>
+
     <div class="row mb-3">
         <div class="col-8">
             <h2><?= htmlspecialchars($projeto['nome']) ?></h2>
