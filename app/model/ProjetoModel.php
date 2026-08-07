@@ -234,9 +234,9 @@ class ProjetoModel extends BaseModel
      *
      * @param string $token
      * @param int $usuarioId
-     * @return bool
+     * @return string 'ok' | 'invalido' | 'ja_participa'
      */
-    public function aceitarConvite(string $token, int $usuarioId): bool
+    public function aceitarConvite(string $token, int $usuarioId): string
     {
         $sql = "SELECT * FROM projeto_convites
                 WHERE token = :token AND status = 'pendente'
@@ -245,11 +245,18 @@ class ProjetoModel extends BaseModel
         $convite = $this->connDb->select($sql, ['token' => $token], 'one');
 
         if (count($convite) === 0) {
-            return false; // token inválido, já usado ou expirado
+            return 'invalido'; // token inválido, já usado ou expirado
         }
 
         if ($this->usuarioParticipa((int) $convite['projeto_id'], $usuarioId)) {
-            return false; // já é colaborador, evita duplicar (mesmo espírito da RN10)
+            // Já é colaborador (ou dono) -- evita duplicar (mesmo espírito
+            // da RN10). Marca o convite como aceito mesmo assim, pra não
+            // ficar um convite pendente "morto" pra sempre.
+            $this->connDb->update(
+                "UPDATE projeto_convites SET status = 'aceito' WHERE id = :id",
+                ['id' => $convite['id']]
+            );
+            return 'ja_participa';
         }
 
         $sqlInsert = "INSERT INTO projeto_usuarios (projeto_id, usuario_id, papel)
@@ -262,7 +269,7 @@ class ProjetoModel extends BaseModel
         $sqlUpdate = "UPDATE projeto_convites SET status = 'aceito' WHERE id = :id";
         $this->connDb->update($sqlUpdate, ['id' => $convite['id']]);
 
-        return true;
+        return 'ok';
     }
 
     /**

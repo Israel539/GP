@@ -235,12 +235,18 @@ class Projeto extends BaseController
         $token   = (string) $this->request->getAction();
         $usuario = $this->usuarioLogado();
 
-        $ok = $this->model->aceitarConvite($token, (int) $usuario['id']);
+        $resultado = $this->model->aceitarConvite($token, (int) $usuario['id']);
 
-        if ($ok) {
-            Session::set('msgSucesso', 'Voce agora faz parte do projeto.');
-        } else {
-            Session::set('msgError', 'Convite invalido, expirado ou ja utilizado.');
+        switch ($resultado) {
+            case 'ok':
+                Session::set('msgSucesso', 'Voce agora faz parte do projeto.');
+                break;
+            case 'ja_participa':
+                Session::set('msgSucesso', 'Voce ja faz parte deste projeto.');
+                break;
+            default:
+                Session::set('msgError', 'Convite invalido, expirado ou ja utilizado.');
+                break;
         }
 
         return header("Location: /Projeto");

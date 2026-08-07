@@ -162,12 +162,16 @@ class Login extends BaseController
     }
 
     /**
-     * redefinirSenhaForm
+     * redefinirSenha
      * URL: /Login/redefinirSenha/{token}
+     * (o nome deste metodo precisa bater com o segmento da URL usado no
+     * link do e-mail -- Routes despacha por reflexao do nome do metodo,
+     * entao "redefinirSenhaForm" aqui nunca seria encontrado para a URL
+     * /Login/redefinirSenha)
      *
      * @return void
      */
-    public function redefinirSenhaForm()
+    public function redefinirSenha()
     {
         $token = (string) $this->request->getAction();
         $usuario = $this->model->buscarPorTokenReset($token);
