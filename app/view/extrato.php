@@ -145,6 +145,17 @@ include __DIR__ . '/comuns/header.php'; ?>
                         <button type="submit" class="btn btn-outline-secondary btn-sm w-100">Filtrar</button>
                     </div>
                 </div>
+                
+                <div class="mt-2 text-end">
+                    <button type="submit" formaction="/Transacao/exportarCsv/<?= (int) $conta['id'] ?>"
+                        class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-filetype-csv"></i> Exportar CSV
+                    </button>
+                    <button type="submit" formaction="/Transacao/exportarPdf/<?= (int) $conta['id'] ?>"
+                        class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+                    </button>
+                </div>
             </form>
 
             <?php if (empty($transacoes)): ?>

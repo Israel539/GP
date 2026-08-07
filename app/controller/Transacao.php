@@ -76,6 +76,157 @@ class Transacao extends BaseController
     }
 
     /**
+     * exportarCsv
+     * URL: /Transacao/exportarCsv/{contaId}?data_inicio=&data_fim=&categoria_id=
+     * Mesmos filtros da tela de extrato -- os botoes de exportar reusam o
+     * proprio formulario de filtro (formaction), entao o periodo exportado
+     * e sempre o que esta sendo visualizado no momento.
+     *
+     * @return void
+     */
+    public function exportarCsv()
+    {
+        $contaId = (int) $this->request->getAction();
+        $usuario = $this->usuarioLogado();
+        if (!$this->podeVisualizarConta($contaId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        [$conta, $transacoes, $filtros, $totais] = $this->dadosParaExportacao($contaId);
+
+        $nomeArquivo = $this->nomeArquivoExportacao($conta['nome'], 'csv');
+
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $nomeArquivo . '"');
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        header('Pragma: public');
+
+        $saida = fopen('php://output', 'w');
+
+        // BOM UTF-8 -- sem isso o Excel no Windows abre acentuacao errada.
+        fwrite($saida, "\xEF\xBB\xBF");
+
+        // Ponto e virgula como separador (nao virgula): e o padrao que o
+        // Excel em pt-BR espera, porque virgula ja e usada como separador
+        // decimal nos numeros.
+        fputcsv($saida, ['Data', 'Descricao', 'Categoria', 'Tipo', 'Modalidade', 'Valor (R$)', 'Origem'], ';');
+
+        foreach ($transacoes as $t) {
+            fputcsv($saida, [
+                $t['data_fato_gerador'],
+                $t['descricao'],
+                $t['categoria_nome'] ?? '(sem categoria)',
+                ucfirst($t['tipo']),
+                ucfirst($t['modalidade']),
+                number_format((float) $t['valor'], 2, ',', ''),
+                $t['origem'] === 'api_openfinance' ? 'Open Finance' : 'Manual',
+            ], ';');
+        }
+
+        fputcsv($saida, [], ';');
+        fputcsv($saida, ['', '', '', '', 'Total receitas', number_format($totais['receitas'], 2, ',', '')], ';');
+        fputcsv($saida, ['', '', '', '', 'Total despesas', number_format($totais['despesas'], 2, ',', '')], ';');
+        fputcsv($saida, ['', '', '', '', 'Saldo do periodo', number_format($totais['receitas'] - $totais['despesas'], 2, ',', '')], ';');
+
+        fclose($saida);
+        exit;
+    }
+
+    /**
+     * exportarPdf
+     * URL: /Transacao/exportarPdf/{contaId}?data_inicio=&data_fim=&categoria_id=
+     *
+     * @return void
+     */
+    public function exportarPdf()
+    {
+        $contaId = (int) $this->request->getAction();
+        $usuario = $this->usuarioLogado();
+        if (!$this->podeVisualizarConta($contaId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        [$conta, $transacoes, $filtros, $totais] = $this->dadosParaExportacao($contaId);
+
+        $categoriaFiltroNome = null;
+        if (!empty($filtros['categoria_id'])) {
+            foreach ($this->categoriaModel->listarDisponiveis((int) $conta['usuario_id']) as $cat) {
+                if ((int) $cat['id'] === (int) $filtros['categoria_id']) {
+                    $categoriaFiltroNome = $cat['nome'];
+                    break;
+                }
+            }
+        }
+
+        ob_start();
+        require __DIR__ . '/../view/extratoPdf.php';
+        $html = ob_get_clean();
+
+        $options = new \Dompdf\Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('defaultFont', 'DejaVu Sans'); // fonte com suporte a acentuacao
+
+        $dompdf = new \Dompdf\Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $nomeArquivo = $this->nomeArquivoExportacao($conta['nome'], 'pdf');
+
+        $dompdf->stream($nomeArquivo, ['Attachment' => true]);
+        exit;
+    }
+
+    /**
+     * dadosParaExportacao
+     * Busca os mesmos dados que a tela de extrato usa, mais os totais do
+     * periodo -- compartilhado entre exportarCsv() e exportarPdf() pra nao
+     * duplicar a query e o calculo de totais nos dois métodos.
+     *
+     * @param int $contaId
+     * @return array [$conta, $transacoes, $filtros, $totais]
+     */
+    protected function dadosParaExportacao(int $contaId): array
+    {
+        $filtros = array_filter([
+            'data_inicio'  => $_GET['data_inicio'] ?? null,
+            'data_fim'     => $_GET['data_fim'] ?? null,
+            'categoria_id' => $_GET['categoria_id'] ?? null,
+        ]);
+
+        $conta      = $this->contaModel->buscarPorId($contaId);
+        $transacoes = $this->model->listarPorConta($contaId, $filtros);
+
+        $totais = ['receitas' => 0.0, 'despesas' => 0.0];
+        foreach ($transacoes as $t) {
+            if ($t['tipo'] === 'receita') {
+                $totais['receitas'] += (float) $t['valor'];
+            } else {
+                $totais['despesas'] += (float) $t['valor'];
+            }
+        }
+
+        return [$conta, $transacoes, $filtros, $totais];
+    }
+
+    /**
+     * nomeArquivoExportacao
+     * Monta um nome de arquivo seguro (sem acento/espaco/caractere especial)
+     * pro download, ex: extrato_conta-corrente_20260807_1432.csv
+     *
+     * @param string $nomeConta
+     * @param string $extensao 'csv' ou 'pdf'
+     * @return string
+     */
+    protected function nomeArquivoExportacao(string $nomeConta, string $extensao): string
+    {
+        $semAcento = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $nomeConta) ?: $nomeConta;
+        $slug      = strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '-', $semAcento), '-'));
+
+        return "extrato_{$slug}_" . date('Ymd_Hi') . ".{$extensao}";
+    }
+
+    /**
      * lancar
      * Cria uma transacao manual (RN09 roteia credito para a fatura).
      *
