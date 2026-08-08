@@ -222,7 +222,8 @@ class PlanoCompra extends BaseController
     {
         $planoId = (int) $this->request->getAction();
 
-        if ($this->carregarPlanoOuNegar($planoId) === null) {
+        $plano = $this->carregarPlanoOuNegar($planoId);
+        if ($plano === null) {
             return;
         }
 
@@ -234,7 +235,11 @@ class PlanoCompra extends BaseController
             Session::set('msgError', 'Nao foi possivel excluir o plano.');
         }
 
-        return header('Location: /PlanoCompra');
+        // Se for um item filho (ex: "pedreiro" dentro de "Consorcio Moto"),
+        // volta pra pagina do pai em vez da listagem raiz -- e onde a pessoa
+        // estava e faz mais sentido continuar depois de excluir um item.
+        $destino = !empty($plano['parent_id']) ? "/PlanoCompra/ver/{$plano['parent_id']}" : '/PlanoCompra';
+        return header("Location: {$destino}");
     }
 
     public function restaurar()

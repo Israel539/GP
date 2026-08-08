@@ -189,6 +189,18 @@ include __DIR__ . '/comuns/header.php'; ?>
                                 <button type="submit" class="btn btn-danger">Cancelar plano</button>
                             </form>
                         <?php endif; ?>
+
+                        <!-- Excluir fica fora do "if" de cima de proposito -- diferente de
+                             editar/concluir/cancelar, excluir precisa continuar disponivel
+                             mesmo quando o plano ja esta concluido ou cancelado (e exatamente
+                             o caso de um item filho cancelado que a pessoa quer limpar da lista). -->
+                        <form action="/PlanoCompra/excluir/<?= (int) $plano['id'] ?>" method="POST" class="ms-auto">
+                            <?= \App\Library\Csrf::getHiddenField() ?>
+                            <button type="submit" class="btn btn-outline-danger"
+                                onclick="return confirm('Excluir <?= !empty($plano['parent_id']) ? 'este item' : 'este plano' ?>? Da pra desfazer em ate 24h na lixeira.');">
+                                Excluir
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
