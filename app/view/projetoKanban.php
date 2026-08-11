@@ -136,7 +136,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                                             $badgeHtml = '<span class="badge bg-danger">Atrasada</span>';
                                         } elseif ($statusColuna === 'em_andamento') {
                                             $cardClass = 'border-warning';
-                                            $badgeText = !empty($tarefa['data_limite']) ? 'Dentro do prazo' : 'Em andamento';
+                                            $badgeText = !empty($tarefa['prazo_valido']) ? 'Dentro do prazo' : 'Em andamento';
                                             $badgeHtml = '<span class="badge bg-warning text-dark">' . $badgeText . '</span>';
                                         } elseif ($statusColuna === 'concluido') {
                                             $cardClass = 'border-success';
@@ -156,7 +156,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                                             <?php if (!empty($tarefa['responsavel_nome'])): ?>
                                                 <div class="small text-muted"><?= htmlspecialchars($tarefa['responsavel_nome']) ?></div>
                                             <?php endif; ?>
-                                            <?php if (!empty($tarefa['data_limite'])): ?>
+                                            <?php if (!empty($tarefa['prazo_valido'])): ?>
                                                 <div class="small text-muted">Prazo: <?= htmlspecialchars($tarefa['data_limite']) ?></div>
                                             <?php endif; ?>
 
@@ -218,7 +218,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                                                             <div class="col-md-6">
                                                                 <label class="form-label small">Prazo</label>
                                                                 <input type="date" name="data_limite" class="form-control form-control-sm"
-                                                                    value="<?= htmlspecialchars($tarefa['data_limite'] ?? '') ?>">
+                                                                    value="<?= !empty($tarefa['prazo_valido']) ? htmlspecialchars($tarefa['data_limite']) : '' ?>">
                                                             </div>
                                                         </div>
                                                         <div>

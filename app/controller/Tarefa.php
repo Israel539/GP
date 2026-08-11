@@ -3,11 +3,13 @@
 namespace App\Controller;
 
 use App\Library\Session;
+use App\Model\ProjetoModel;
+use App\Model\TarefaModel;
 
 class Tarefa extends BaseController
 {
-    protected $model;
-    protected $projetoModel;
+    protected TarefaModel $model;
+    protected ProjetoModel $projetoModel;
 
     public function __construct()
     {
@@ -41,7 +43,13 @@ class Tarefa extends BaseController
             'titulo'         => $post['titulo'],
             'descricao'      => $post['descricao'] ?? null,
             'responsavel_id' => !empty($post['responsavel_id']) ? (int) $post['responsavel_id'] : null,
-            'data_limite'    => $post['data_limite'] ?? null,
+            // Bug corrigido: input type="date" vazio manda '' no POST (a
+            // chave existe, so o valor e vazio), entao '?? null' nao
+            // pegava e a string vazia ia pro INSERT. Como a coluna e DATE
+            // e o MySQL nao esta em modo estrito aqui, isso virava
+            // silenciosamente '0000-00-00' em vez de NULL (mesmo bug que
+            // ja tinha sido corrigido no atualizar(), so faltava aqui).
+            'data_limite'    => !empty($post['data_limite']) ? $post['data_limite'] : null,
         ]);
 
         Session::set('msgSucesso', 'Tarefa criada.');

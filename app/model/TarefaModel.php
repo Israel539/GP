@@ -83,7 +83,8 @@ class TarefaModel extends BaseModel
         $tarefas = $this->connDb->select($sql, ['projeto_id' => $projetoId]);
 
         foreach ($tarefas as &$tarefa) {
-            $tarefa['atrasada'] = $this->calcularAtraso($tarefa);
+            $tarefa['atrasada']     = $this->calcularAtraso($tarefa);
+            $tarefa['prazo_valido'] = $this->temPrazoValido($tarefa);
         }
 
         return $tarefas;
@@ -99,16 +100,34 @@ class TarefaModel extends BaseModel
      */
     public function calcularAtraso(array $tarefa): bool
     {
-        if (empty($tarefa['data_limite']) || $tarefa['status'] === self::STATUS_CONCLUIDO) {
+        if (!$this->temPrazoValido($tarefa) || $tarefa['status'] === self::STATUS_CONCLUIDO) {
             return false;
         }
 
         $dataLimite = \DateTime::createFromFormat('Y-m-d', $tarefa['data_limite']);
-        if (!($dataLimite instanceof \DateTime) || $dataLimite->format('Y-m-d') !== $tarefa['data_limite']) {
-            return false; // datas inválidas ou ZERO-Date não são consideradas atrasadas
-        }
 
         return $dataLimite < new \DateTime('today');
+    }
+
+    /**
+     * temPrazoValido
+     * Considera "sem prazo" tanto NULL/'' quanto o zero-date '0000-00-00'
+     * (linha antiga que ficou gravada por causa do bug do TarefaModel::criar()
+     * -- ver correcao em Tarefa::criar()). Centraliza essa checagem pra nao
+     * espalhar o mesmo if em varios lugares (Model e View).
+     *
+     * @param array $tarefa
+     * @return bool
+     */
+    public function temPrazoValido(array $tarefa): bool
+    {
+        if (empty($tarefa['data_limite']) || $tarefa['data_limite'] === '0000-00-00') {
+            return false;
+        }
+
+        $dataLimite = \DateTime::createFromFormat('Y-m-d', $tarefa['data_limite']);
+
+        return $dataLimite instanceof \DateTime && $dataLimite->format('Y-m-d') === $tarefa['data_limite'];
     }
 
     /**

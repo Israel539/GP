@@ -3,10 +3,11 @@
 namespace App\Controller;
 
 use App\Library\Session;
+use App\Model\CompromissoRecorrenteModel;
 
 class CompromissoRecorrente extends BaseController
 {
-    protected $model;
+    protected CompromissoRecorrenteModel $model;
 
     public function __construct()
     {

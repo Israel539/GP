@@ -9,7 +9,7 @@ use App\Model\UsuarioModel;
 
 class BaseController
 {
-    public $request;
+    public Request $request;
 
     public function __construct()
     {
