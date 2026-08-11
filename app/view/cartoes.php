@@ -25,6 +25,9 @@
                             <p class="text-muted mb-1">Fecha dia <?= (int) $cartao['dia_fechamento'] ?>, vence dia <?= (int) $cartao['dia_vencimento'] ?></p>
                             <?php if (!empty($cartao['limite'])): ?>
                                 <p class="text-muted">Limite: R$ <?= number_format((float) $cartao['limite'], 2, ',', '.') ?></p>
+                                <?php if (isset($cartao['disponivel'])): ?>
+                                    <p class="text-muted">Disponível: R$ <?= number_format((float) $cartao['disponivel'], 2, ',', '.') ?></p>
+                                <?php endif; ?>
                             <?php endif; ?>
                             <a href="/Cartao/faturas/<?= (int) $cartao['id'] ?>" class="btn btn-outline-primary btn-sm">Ver faturas</a>
                             <a href="/Cartao/editar/<?= (int) $cartao['id'] ?>" class="btn btn-outline-secondary btn-sm">Editar</a>

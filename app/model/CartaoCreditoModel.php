@@ -53,7 +53,16 @@ class CartaoCreditoModel extends BaseModel
      */
     public function listarPorUsuario(int $usuarioId): array
     {
-        $sql = "SELECT cc.*
+        $sql = "SELECT cc.*, 
+                       CASE
+                           WHEN cc.limite IS NULL THEN NULL
+                           ELSE cc.limite - COALESCE((
+                               SELECT SUM(f.valor_total)
+                               FROM faturas f
+                               WHERE f.cartao_id = cc.id
+                                 AND f.status != 'paga'
+                           ), 0)
+                       END AS disponivel
                 FROM cartoes_credito cc
                 INNER JOIN contas c ON c.id = cc.conta_pagadora_id
                                 WHERE c.usuario_id = :usuario_id
