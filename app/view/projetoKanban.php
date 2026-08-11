@@ -27,6 +27,16 @@ include __DIR__ . '/comuns/header.php'; ?>
                     </button>
                 </form>
             <?php endif; ?>
+
+            <?php if ($projeto['status'] === 'concluido' && isset($usuario) && $usuario['id'] === (int) $projeto['dono_id']): ?>
+                <form action="/Projeto/excluir/<?= (int) $projeto['id'] ?>" method="POST" class="d-inline ms-2">
+                    <?= \App\Library\Csrf::getHiddenField() ?>
+                    <button type="submit" class="btn btn-outline-danger btn-sm"
+                        onclick="return confirm('Excluir este projeto concluído? Esta ação não pode ser desfeita.')">
+                        Apagar projeto
+                    </button>
+                </form>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -132,14 +142,17 @@ include __DIR__ . '/comuns/header.php'; ?>
                                     <?php if ($tarefa['status'] !== $statusColuna) continue; ?>
                                     <?php
                                         if ($tarefa['atrasada']) {
-                                            $cardClass = 'border-danger';
+                                            $cardClass = 'border border-danger';
                                             $badgeHtml = '<span class="badge bg-danger">Atrasada</span>';
+                                        } elseif ($statusColuna === 'a_fazer' && !empty($tarefa['prazo_valido'])) {
+                                            $cardClass = 'border border-warning';
+                                            $badgeHtml = '<span class="badge bg-warning text-dark">Dentro do prazo</span>';
                                         } elseif ($statusColuna === 'em_andamento') {
-                                            $cardClass = 'border-warning';
+                                            $cardClass = 'border border-warning';
                                             $badgeText = !empty($tarefa['prazo_valido']) ? 'Dentro do prazo' : 'Em andamento';
                                             $badgeHtml = '<span class="badge bg-warning text-dark">' . $badgeText . '</span>';
                                         } elseif ($statusColuna === 'concluido') {
-                                            $cardClass = 'border-success';
+                                            $cardClass = 'border border-success';
                                             $badgeHtml = '<span class="badge bg-success">Concluida</span>';
                                         } else {
                                             $cardClass = '';

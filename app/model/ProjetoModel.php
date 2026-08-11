@@ -299,4 +299,17 @@ class ProjetoModel extends BaseModel
 
         return true;
     }
+
+    /**
+     * excluir
+     * Deleta o projeto e todos os dados relacionados.
+     *
+     * @param int $projetoId
+     * @return bool
+     */
+    public function excluir(int $projetoId): bool
+    {
+        $sql = "DELETE FROM projetos WHERE id = :id";
+        return $this->connDb->delete($sql, ['id' => $projetoId]) > 0;
+    }
 }

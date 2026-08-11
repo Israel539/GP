@@ -3,12 +3,15 @@
 namespace App\Controller;
 
 use App\Library\Session;
+use App\Model\MensagemProjetoModel;
+use App\Model\ProjetoModel;
+use App\Model\TarefaModel;
 
 class Projeto extends BaseController
 {
-    protected $model;
-    protected $tarefaModel;
-    protected $mensagemModel;
+    protected ProjetoModel $model;
+    protected TarefaModel $tarefaModel;
+    protected MensagemProjetoModel $mensagemModel;
 
     public function __construct()
     {
@@ -277,6 +280,39 @@ class Projeto extends BaseController
             Session::set('msgError', 'Ainda ha tarefas pendentes neste projeto (RN05).');
         }
 
+        return header("Location: /Projeto/kanban/{$projetoId}");
+    }
+
+    /**
+     * excluir
+     * Permite que apenas o dono exclua o projeto concluido.
+     *
+     * @return void
+     */
+    public function excluir()
+    {
+        $projetoId = (int) $this->request->getAction();
+        $usuario   = $this->usuarioLogado();
+
+        if (!$this->model->usuarioEhDono($projetoId, (int) $usuario['id'])) {
+            http_response_code(403);
+            Session::set('msgError', 'Somente o dono do projeto pode excluir o projeto.');
+            return header("Location: /Projeto/kanban/{$projetoId}");
+        }
+
+        if ($this->model->buscarPorId($projetoId)['status'] !== ProjetoModel::STATUS_CONCLUIDO) {
+            Session::set('msgError', 'Somente projetos concluidos podem ser excluidos.');
+            return header("Location: /Projeto/kanban/{$projetoId}");
+        }
+
+        $ok = $this->model->excluir($projetoId);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Projeto excluido.');
+            return header('Location: /Projeto');
+        }
+
+        Session::set('msgError', 'Nao foi possivel excluir o projeto.');
         return header("Location: /Projeto/kanban/{$projetoId}");
     }
 
