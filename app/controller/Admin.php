@@ -410,6 +410,22 @@ class Admin extends BaseController
         return $this->view('adminContato', ['contato' => $contato]);
     }
 
+    public function excluirContato()
+    {
+        $contatoId = (int) $this->request->getAction();
+        $contatoModel = $this->model('Contato');
+
+        $ok = $contatoModel->excluir($contatoId);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Conversa respondida apagada com sucesso.');
+        } else {
+            Session::set('msgError', 'Nao foi possivel apagar esta conversa. Apenas mensagens respondidas podem ser excluidas.');
+        }
+
+        return header('Location: /Admin/contatos');
+    }
+
     /**
      * responder
      * O admin responde a mensagem. Se o autor nao estava logado, recebe email.
@@ -429,17 +445,35 @@ class Admin extends BaseController
         }
 
         $adminId = (int) $this->usuarioLogado()['id'];
-        $contatoModel->responder($contatoId, $adminId, $resposta);
+        $okResponder = $contatoModel->responder($contatoId, $adminId, $resposta);
 
-        if (empty($contato['usuario_id'])) {
-            $corpo = "<p>Olá " . htmlspecialchars($contato['nome']) . ",</p>"
-                   . "<p>Sua mensagem foi respondida pelo administrador:</p>"
-                   . "<p><strong>Assunto:</strong> " . htmlspecialchars($contato['assunto']) . "</p>"
-                   . "<p><strong>Resposta:</strong><br>" . nl2br(htmlspecialchars($resposta)) . "</p>";
-            Mailer::enviar($contato['email'], $contato['nome'], 'Resposta ao seu contato', $corpo);
+        if (!$okResponder) {
+            Session::set('msgError', 'Nao foi possivel salvar a resposta. Tente novamente.');
+            return header('Location: /Admin/verContato/' . $contatoId);
         }
 
-        Session::set('msgSucesso', 'Resposta enviada com sucesso.');
+        if (empty($contato['usuario_id'])) {
+            $assuntoEmail = 'Resposta ao seu contato: ' . htmlspecialchars($contato['assunto']);
+            $corpo = "<p>Olá " . htmlspecialchars($contato['nome']) . ",</p>"
+                   . "<p>Recebemos seu contato e o administrador respondeu. Veja abaixo:</p>"
+                   . "<p><strong>Assunto:</strong> " . htmlspecialchars($contato['assunto']) . "</p>"
+                   . "<p><strong>Sua mensagem original:</strong><br>" . nl2br(htmlspecialchars($contato['mensagem'])) . "</p>"
+                   . "<hr>"
+                   . "<p><strong>Resposta:</strong><br>" . nl2br(htmlspecialchars($resposta)) . "</p>"
+                   . "<p>Se você ainda tiver dúvidas, responda neste e-mail.</p>";
+
+            $envio = Mailer::enviar($contato['email'], $contato['nome'], $assuntoEmail, $corpo);
+            if (!$envio['ok']) {
+                Session::set('msgError', 'Resposta salva, mas falha ao enviar e-mail: ' . $envio['erro']);
+            }
+        }
+
+        if (empty($_SESSION['msgError'])) {
+            Session::set('msgSucesso', 'Resposta enviada com sucesso.');
+        } else {
+            Session::set('msgSucesso', 'Resposta salva com sucesso.');
+        }
+
         return header('Location: /Admin/contatos');
     }
 }

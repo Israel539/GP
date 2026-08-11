@@ -33,24 +33,39 @@ include __DIR__ . '/comuns/header.php'; ?>
     <?php else: ?>
         <div class="list-group">
             <?php foreach ($contatos as $contato): ?>
-                <?php $itemClass = 'list-group-item list-group-item-action' . (empty($contato['resposta']) ? ' list-group-item-warning' : ''); ?>
+                <?php $itemClass = 'list-group-item' . (empty($contato['resposta']) ? ' list-group-item-warning' : ''); ?>
                 <?php if (!empty($contato['status']) && $contato['status'] === 'excluido'): ?>
                     <?php $itemClass .= ' list-group-item-danger'; ?>
                 <?php endif; ?>
-                <a href="/Admin/verContato/<?= (int) $contato['id'] ?>" class="<?= $itemClass ?>">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h5 class="mb-1"><?= htmlspecialchars($contato['assunto']) ?></h5>
-                        <small><?= htmlspecialchars(date('d/m/Y H:i', strtotime($contato['criado_em']))) ?></small>
+                <div class="<?= $itemClass ?> d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <a href="/Admin/verContato/<?= (int) $contato['id'] ?>" class="text-decoration-none text-body">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1"><?= htmlspecialchars($contato['assunto']) ?></h5>
+                                <small><?= htmlspecialchars(date('d/m/Y H:i', strtotime($contato['criado_em']))) ?></small>
+                            </div>
+                            <p class="mb-1 text-truncate"><?= htmlspecialchars($contato['mensagem']) ?></p>
+                            <small>
+                                De: <?= htmlspecialchars($contato['nome']) ?> &lt;<?= htmlspecialchars($contato['email']) ?>&gt;
+                                <?= empty($contato['resposta']) ? '(Pendente)' : '(Respondido)' ?>
+                                <?php if (!empty($contato['status']) && $contato['status'] === 'excluido'): ?>
+                                    <span class="badge bg-danger ms-2">Excluído</span>
+                                    <?php if (!empty($contato['excluido_por_admin'])): ?>
+                                        <span class="badge bg-secondary ms-2">Excluído pelo admin</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary ms-2">Excluído pelo usuário</span>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            </small>
+                        </a>
                     </div>
-                    <p class="mb-1 text-truncate"><?= htmlspecialchars($contato['mensagem']) ?></p>
-                    <small>
-                        De: <?= htmlspecialchars($contato['nome']) ?> &lt;<?= htmlspecialchars($contato['email']) ?>&gt;
-                        <?= empty($contato['resposta']) ? '(Pendente)' : '(Respondido)' ?>
-                        <?php if (!empty($contato['status']) && $contato['status'] === 'excluido'): ?>
-                            <span class="badge bg-danger ms-2">Excluído</span>
-                        <?php endif; ?>
-                    </small>
-                </a>
+                    <?php if (!empty($contato['resposta']) && (($contato['status'] ?? '') !== 'excluido')): ?>
+                        <form action="/Admin/excluirContato/<?= (int) $contato['id'] ?>" method="POST" class="ms-3" onsubmit="return confirm('Confirma apagar esta conversa respondida?');">
+                            <?= \App\Library\Csrf::getHiddenField() ?>
+                            <button type="submit" class="btn btn-sm btn-danger">Apagar</button>
+                        </form>
+                    <?php endif; ?>
+                </div>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>

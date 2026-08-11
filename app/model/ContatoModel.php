@@ -75,6 +75,15 @@ class ContatoModel extends BaseModel
         ]) !== false;
     }
 
+    public function excluir(int $id): bool
+    {
+        $sql = "UPDATE contatos
+                SET status = 'excluido', excluido_em = CURRENT_TIMESTAMP, excluido_por_admin = 1
+                WHERE id = :id AND status = 'respondido'";
+
+        return $this->connDb->update($sql, ['id' => $id]) !== false;
+    }
+
     /**
      * limparPorUsuario
      * Remove todas as mensagens associadas a um usuário (usado para limpar histórico)
@@ -83,7 +92,7 @@ class ContatoModel extends BaseModel
      */
     public function limparPorUsuario(int $usuarioId): bool
     {
-        $sql = "UPDATE contatos SET status = 'excluido', excluido_em = CURRENT_TIMESTAMP WHERE usuario_id = :usuario_id";
+        $sql = "UPDATE contatos SET status = 'excluido', excluido_em = CURRENT_TIMESTAMP, excluido_por_admin = 0 WHERE usuario_id = :usuario_id";
         return $this->connDb->update($sql, ['usuario_id' => $usuarioId]) !== false;
     }
 
@@ -112,7 +121,7 @@ class ContatoModel extends BaseModel
     {
         $window = defined('RESTORE_WINDOW_HOURS') ? (int) RESTORE_WINDOW_HOURS : 24;
         $cutoff = date('Y-m-d H:i:s', strtotime("-{$window} hours"));
-        $sql = "UPDATE contatos SET status = 'pendente', excluido_em = NULL WHERE usuario_id = :usuario_id AND status = 'excluido' AND excluido_em >= :cutoff";
+        $sql = "UPDATE contatos SET status = 'pendente', excluido_em = NULL, excluido_por_admin = 0 WHERE usuario_id = :usuario_id AND status = 'excluido' AND excluido_em >= :cutoff";
         return $this->connDb->update($sql, ['usuario_id' => $usuarioId, 'cutoff' => $cutoff]) !== false;
     }
 
