@@ -227,6 +227,23 @@ class ProjetoModel extends BaseModel
     }
 
     /**
+     * buscarProjetoIdPorTokenConvite
+     * Usado pelo Controller so pra logar o evento de entrada na timeline
+     * (ProjetoAtividadeModel::TIPO_COLABORADOR_ENTROU) apos aceitarConvite()
+     * -- que devolve so uma string de status, nao o projeto_id.
+     *
+     * @param string $token
+     * @return int 0 se o token nao existir
+     */
+    public function buscarProjetoIdPorTokenConvite(string $token): int
+    {
+        $sql = "SELECT projeto_id FROM projeto_convites WHERE token = :token LIMIT 1";
+        $linha = $this->connDb->select($sql, ['token' => $token], 'one');
+
+        return (int) ($linha['projeto_id'] ?? 0);
+    }
+
+    /**
      * aceitarConvite
      * Chamado quando o convidado clica no link recebido e já está logado
      * (ou acabou de se cadastrar). Marca o convite como aceito e cria o

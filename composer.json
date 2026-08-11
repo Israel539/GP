@@ -9,7 +9,8 @@
     ],
     "require": {
         "phpmailer/phpmailer": "^6.9",
-        "dompdf/dompdf": "^3.1"
+        "dompdf/dompdf": "^3.1",
+        "phpoffice/phpword": "^1.4"
     },
     "autoload": {
         "psr-4": {

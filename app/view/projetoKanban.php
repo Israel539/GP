@@ -18,6 +18,12 @@ include __DIR__ . '/comuns/header.php'; ?>
             <span class="badge bg-info text-dark"><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $projeto['status']))) ?></span>
         </div>
         <div class="col-4 text-end">
+            <?php if (isset($usuario) && $usuario['id'] === (int) $projeto['dono_id']): ?>
+                <a href="/ProjetoRelatorio/form/<?= (int) $projeto['id'] ?>" class="btn btn-outline-dark btn-sm me-2">
+                    <i class="bi bi-file-earmark-text"></i> Relatório
+                </a>
+            <?php endif; ?>
+
             <?php if ($projeto['status'] !== 'concluido' && isset($usuario) && $usuario['id'] === (int) $projeto['dono_id']): ?>
                 <form action="/Projeto/concluir/<?= (int) $projeto['id'] ?>" method="POST" class="d-inline">
                     <?= \App\Library\Csrf::getHiddenField() ?>

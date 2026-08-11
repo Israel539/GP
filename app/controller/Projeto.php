@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Library\Session;
 use App\Model\MensagemProjetoModel;
+use App\Model\ProjetoAtividadeModel;
 use App\Model\ProjetoModel;
 use App\Model\TarefaModel;
 
@@ -12,13 +13,15 @@ class Projeto extends BaseController
     protected ProjetoModel $model;
     protected TarefaModel $tarefaModel;
     protected MensagemProjetoModel $mensagemModel;
+    protected ProjetoAtividadeModel $atividadeModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->model         = $this->model('Projeto');
-        $this->tarefaModel   = $this->model('Tarefa');
-        $this->mensagemModel = $this->model('MensagemProjeto');
+        $this->model          = $this->model('Projeto');
+        $this->tarefaModel    = $this->model('Tarefa');
+        $this->mensagemModel  = $this->model('MensagemProjeto');
+        $this->atividadeModel = $this->model('ProjetoAtividade');
         $this->helper("crud");
     }
 
@@ -67,6 +70,13 @@ class Projeto extends BaseController
         $projetoId = $this->model->criar($dados, (int) $usuario['id']);
 
         if ($projetoId > 0) {
+            $this->atividadeModel->registrar(
+                $projetoId,
+                (int) $usuario['id'],
+                ProjetoAtividadeModel::TIPO_PROJETO_CRIADO,
+                $usuario['nome'] . ' criou o projeto.'
+            );
+
             Session::set('msgSucesso', 'Projeto criado com sucesso.');
             return header("Location: /Projeto/kanban/{$projetoId}");
         }
@@ -128,6 +138,13 @@ class Projeto extends BaseController
         $ok = $this->model->removerParticipante($projetoId, (int) $usuario['id']);
 
         if ($ok) {
+            $this->atividadeModel->registrar(
+                $projetoId,
+                (int) $usuario['id'],
+                ProjetoAtividadeModel::TIPO_COLABORADOR_SAIU,
+                $usuario['nome'] . ' saiu do projeto.'
+            );
+
             Session::set('msgSucesso', 'Voce saiu do projeto.');
             return header('Location: /Projeto');
         }
@@ -162,9 +179,20 @@ class Projeto extends BaseController
             return header("Location: /Projeto/kanban/{$projetoId}");
         }
 
+        // Nome precisa ser buscado ANTES de remover (senao o JOIN com
+        // usuarios via projeto_usuarios some depois do DELETE).
+        $nomeColaborador = $this->model('Usuario')->buscarPorId($colaboradorId)['nome'] ?? 'Colaborador';
+
         $ok = $this->model->removerParticipante($projetoId, $colaboradorId);
 
         if ($ok) {
+            $this->atividadeModel->registrar(
+                $projetoId,
+                (int) $usuario['id'],
+                ProjetoAtividadeModel::TIPO_COLABORADOR_REMOVIDO,
+                $nomeColaborador . ' foi removido do projeto por ' . $usuario['nome'] . '.'
+            );
+
             Session::set('msgSucesso', 'Colaborador removido do projeto.');
         } else {
             Session::set('msgError', 'Nao foi possivel remover o colaborador.');
@@ -242,6 +270,16 @@ class Projeto extends BaseController
 
         switch ($resultado) {
             case 'ok':
+                $projetoId = $this->model->buscarProjetoIdPorTokenConvite($token);
+                if ($projetoId > 0) {
+                    $this->atividadeModel->registrar(
+                        $projetoId,
+                        (int) $usuario['id'],
+                        ProjetoAtividadeModel::TIPO_COLABORADOR_ENTROU,
+                        $usuario['nome'] . ' entrou no projeto.'
+                    );
+                }
+
                 Session::set('msgSucesso', 'Voce agora faz parte do projeto.');
                 break;
             case 'ja_participa':
@@ -275,6 +313,13 @@ class Projeto extends BaseController
         $ok = $this->model->concluir($projetoId);
 
         if ($ok) {
+            $this->atividadeModel->registrar(
+                $projetoId,
+                (int) $usuario['id'],
+                ProjetoAtividadeModel::TIPO_PROJETO_CONCLUIDO,
+                $usuario['nome'] . ' concluiu o projeto.'
+            );
+
             Session::set('msgSucesso', 'Projeto concluido.');
         } else {
             Session::set('msgError', 'Ainda ha tarefas pendentes neste projeto (RN05).');

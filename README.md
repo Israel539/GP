@@ -181,10 +181,3 @@ consistente:
   derruba a varredura inteira
 
 ---
-
-## Scripts de diagnóstico
-
-`tmp_db_check.php` e `tmp_feriados_check.php` na raiz são scripts
-temporários de debug (acessados direto pelo navegador ou `php nome.php`),
-não fazem parte da aplicação — dá ppra aagar quando não precisar mais
-deles.

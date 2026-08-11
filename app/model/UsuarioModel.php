@@ -329,4 +329,89 @@ class UsuarioModel extends BaseModel
         $sql = "DELETE FROM usuarios WHERE id = :id";
         return $this->connDb->delete($sql, ['id' => $usuarioId]);
     }
+
+    // ------------------------------------------------------------------
+    // EDICAO DE PERFIL
+    // ------------------------------------------------------------------
+
+    // Campos que o proprio usuario pode editar no perfil. 'nivel' e
+    // 'statusRegistro' ficam de fora de proposito -- so um Admin muda isso
+    // (alterarNivel()/alterarStatus()), nunca o formulario de perfil.
+    private const CAMPOS_EDITAVEIS_PERFIL = [
+        'nome', 'email', 'cpf', 'data_nascimento', 'telefone_whats', 'foto',
+    ];
+
+    /**
+     * atualizar
+     * Atualiza os dados de perfil de um usuario (mass-assignment protegido
+     * pela whitelist CAMPOS_EDITAVEIS_PERFIL, mesmo padrao ja usado em
+     * PlanoCompraModel/TarefaModel/etc). Campo enviado como string vazia
+     * vira NULL no banco (ex: usuario apagou o CPF do formulario).
+     *
+     * @param int $id
+     * @param array $dados
+     * @return bool
+     */
+    public function atualizar(int $id, array $dados): bool
+    {
+        $dadosPermitidos = array_intersect_key($dados, array_flip(self::CAMPOS_EDITAVEIS_PERFIL));
+
+        if (empty($dadosPermitidos)) {
+            return false;
+        }
+
+        if (array_key_exists('telefone_whats', $dadosPermitidos)) {
+            $dadosPermitidos['telefone_whats'] = !empty($dadosPermitidos['telefone_whats'])
+                ? preg_replace('/\D/', '', $dadosPermitidos['telefone_whats'])
+                : null;
+        }
+
+        $sets = [];
+        $params = ['id' => $id];
+
+        foreach ($dadosPermitidos as $campo => $valor) {
+            $sets[] = "{$campo} = :{$campo}";
+            $params[$campo] = ($valor === '') ? null : $valor;
+        }
+
+        $sql = "UPDATE usuarios SET " . implode(', ', $sets) . " WHERE id = :id";
+        $this->connDb->update($sql, $params);
+
+        return true;
+    }
+
+    /**
+     * emailJaExisteEmOutraConta
+     * Igual a emailJaExiste(), mas exclui o proprio usuario da checagem --
+     * necessario na edicao de perfil (senao a pessoa nunca conseguiria
+     * salvar o formulario com o proprio e-mail preenchido).
+     *
+     * @param string $email
+     * @param int $idAtual
+     * @return bool
+     */
+    public function emailJaExisteEmOutraConta(string $email, int $idAtual): bool
+    {
+        $sql = "SELECT id FROM usuarios WHERE email = :email AND id != :id LIMIT 1";
+        $linha = $this->connDb->select($sql, ['email' => $email, 'id' => $idAtual], 'one');
+
+        return count($linha) > 0;
+    }
+
+    /**
+     * buscarSenhaHash
+     * Usado so pra conferir a senha atual antes de trocar (Usuario::alterarSenha()).
+     * Fica separado de buscarPorId() de proposito -- esse metodo devolve
+     * campos publicos do perfil e nunca deveria incluir o hash da senha.
+     *
+     * @param int $id
+     * @return string|null
+     */
+    public function buscarSenhaHash(int $id): ?string
+    {
+        $sql = "SELECT senha FROM usuarios WHERE id = :id LIMIT 1";
+        $linha = $this->connDb->select($sql, ['id' => $id], 'one');
+
+        return $linha['senha'] ?? null;
+    }
 }

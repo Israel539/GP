@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Library\Session;
+use App\Model\ProjetoAtividadeModel;
 use App\Model\ProjetoModel;
 use App\Model\TarefaModel;
 
@@ -10,12 +11,14 @@ class Tarefa extends BaseController
 {
     protected TarefaModel $model;
     protected ProjetoModel $projetoModel;
+    protected ProjetoAtividadeModel $atividadeModel;
 
     public function __construct()
     {
         parent::__construct();
-        $this->model        = $this->model('Tarefa');
-        $this->projetoModel = $this->model('Projeto');
+        $this->model          = $this->model('Tarefa');
+        $this->projetoModel   = $this->model('Projeto');
+        $this->atividadeModel = $this->model('ProjetoAtividade');
     }
 
     /**
@@ -52,6 +55,13 @@ class Tarefa extends BaseController
             'data_limite'    => !empty($post['data_limite']) ? $post['data_limite'] : null,
         ]);
 
+        $this->atividadeModel->registrar(
+            $projetoId,
+            (int) $usuario['id'],
+            ProjetoAtividadeModel::TIPO_TAREFA_CRIADA,
+            $usuario['nome'] . ' criou a tarefa "' . $post['titulo'] . '".'
+        );
+
         Session::set('msgSucesso', 'Tarefa criada.');
         return header("Location: /Projeto/kanban/{$projetoId}");
     }
@@ -83,7 +93,20 @@ class Tarefa extends BaseController
 
         $ok = $this->model->moverStatus($tarefaId, $novoStatus);
 
-        if (!$ok) {
+        if ($ok) {
+            $rotulos = [
+                TarefaModel::STATUS_A_FAZER      => 'A Fazer',
+                TarefaModel::STATUS_EM_ANDAMENTO => 'Em Andamento',
+                TarefaModel::STATUS_CONCLUIDO    => 'Concluído',
+            ];
+
+            $this->atividadeModel->registrar(
+                $projetoId,
+                (int) $usuario['id'],
+                ProjetoAtividadeModel::TIPO_TAREFA_MOVIDA,
+                $usuario['nome'] . ' moveu a tarefa "' . $tarefa['titulo'] . '" para "' . ($rotulos[$novoStatus] ?? $novoStatus) . '".'
+            );
+        } else {
             Session::set('msgError', 'Movimento invalido para esta tarefa (RN04).');
         }
 
@@ -167,6 +190,13 @@ class Tarefa extends BaseController
         $ok = $this->model->excluir($tarefaId);
 
         if ($ok) {
+            $this->atividadeModel->registrar(
+                $projetoId,
+                (int) $usuario['id'],
+                ProjetoAtividadeModel::TIPO_TAREFA_EXCLUIDA,
+                $usuario['nome'] . ' excluiu a tarefa "' . $tarefa['titulo'] . '".'
+            );
+
             Session::set('msgSucesso', 'Tarefa excluida.');
         } else {
             Session::set('msgError', 'Nao foi possivel excluir a tarefa.');
