@@ -290,6 +290,7 @@ CREATE TABLE IF NOT EXISTS cartoes_credito (
     limite              DECIMAL(14,2) DEFAULT NULL,
     dia_fechamento      TINYINT UNSIGNED NOT NULL COMMENT 'Dia do mês em que a fatura fecha',
     dia_vencimento      TINYINT UNSIGNED NOT NULL COMMENT 'Dia do mês em que a fatura vence',
+    excluido_em         DATETIME         DEFAULT NULL COMMENT 'Soft-delete timestamp',
 
     CONSTRAINT fk_cartao_conta FOREIGN KEY (conta_pagadora_id) REFERENCES contas(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

@@ -27,6 +27,11 @@
                                 <p class="text-muted">Limite: R$ <?= number_format((float) $cartao['limite'], 2, ',', '.') ?></p>
                             <?php endif; ?>
                             <a href="/Cartao/faturas/<?= (int) $cartao['id'] ?>" class="btn btn-outline-primary btn-sm">Ver faturas</a>
+                            <a href="/Cartao/editar/<?= (int) $cartao['id'] ?>" class="btn btn-outline-secondary btn-sm">Editar</a>
+                            <form action="/Cartao/deletar/<?= (int) $cartao['id'] ?>" method="POST" class="d-inline" onsubmit="return confirm('Confirma exclusao deste cartao?');">
+                                <?= \App\Library\Csrf::getHiddenField() ?>
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Apagar</button>
+                            </form>
                         </div>
                     </div>
                 </div>

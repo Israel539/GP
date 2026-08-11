@@ -158,6 +158,101 @@ class Cartao extends BaseController
     }
 
     /**
+     * editar
+     * URL: /Cartao/editar/{cartaoId}
+     *
+     * @return void
+     */
+    public function editar()
+    {
+        $cartaoId = (int) $this->request->getAction();
+        $usuario  = $this->usuarioLogado();
+
+        if (!$this->model->usuarioEhDono($cartaoId, (int) $usuario['id']) && !$this->temAcessoSuporteAtivo('cartao', $cartaoId)) {
+            return $this->negarAcesso();
+        }
+
+        $cartao = $this->model->buscarPorId($cartaoId);
+        $contas = $this->contaModel->listarPorUsuario((int) $usuario['id']);
+
+        return $this->view('cartaoForm', ['contas' => $contas, 'cartao' => $cartao]);
+    }
+
+    /**
+     * atualizar
+     * Recebe POST para atualizar um cartao existente
+     *
+     * @return void
+     */
+    public function atualizar()
+    {
+        $dados   = $this->request->getPost();
+        $usuario = $this->usuarioLogado();
+
+        $id = (int) ($dados['id'] ?? 0);
+        if ($id <= 0) {
+            Session::set('msgError', 'ID do cartao invalido.');
+            return header('Location: /Cartao');
+        }
+
+        if (!$this->model->usuarioEhDono($id, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        if (!$this->model->validate($dados)) {
+            Session::set('msgError', 'Verifique os campos destacados e tente novamente.');
+            return header("Location: /Cartao/editar/{$id}");
+        }
+
+        $contaPagadoraId = (int) ($dados['conta_pagadora_id'] ?? 0);
+        if (!$this->contaModel->usuarioEhDono($contaPagadoraId, (int) $usuario['id'])) {
+            Session::set('msgError', 'Conta pagadora invalida.');
+            return header("Location: /Cartao/editar/{$id}");
+        }
+
+        if (!empty($dados['limite'])) {
+            $dados['limite'] = str_replace(',', '.', $dados['limite']);
+        }
+
+        $ok = $this->model->atualizar($id, $dados, $contaPagadoraId);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Cartao atualizado com sucesso.');
+        } else {
+            Session::set('msgError', 'Nao foi possivel atualizar o cartao.');
+        }
+
+        return header('Location: /Cartao');
+    }
+
+    /**
+     * deletar
+     * URL: /Cartao/deletar/{cartaoId}
+     *
+     * @return void
+     */
+    public function deletar()
+    {
+        $cartaoId = (int) $this->request->getAction();
+        $usuario  = $this->usuarioLogado();
+
+        if (!$this->model->usuarioEhDono($cartaoId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        // Soft-delete: marca excluido_em. O model já implementa isso.
+        $ok = $this->model->deletar($cartaoId);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Cartao excluido com sucesso.');
+        } else {
+            Session::set('msgError', 'Nao foi possivel excluir o cartao.');
+        }
+
+        return header('Location: /Cartao');
+    }
+
+    /**
      * negarAcesso
      *
      * @return void
