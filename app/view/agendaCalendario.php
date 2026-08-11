@@ -2,10 +2,12 @@
 /**
  * @var int $ano
  * @var int $mes
+ * @var \DateTime $primeiroDia
  * @var \DateTime $mesAnterior
  * @var \DateTime $mesSeguinte
- * @var \DateTime $primeiroDia
- * @var array<string, array> $porDia
+ * @var array<string,array> $porDia
+ * @var array<string,string> $feriados
+ * @var array<string,string> $comemorativas
  * @var string $hojeChave
  */
 include __DIR__ . '/comuns/header.php'; ?>
@@ -149,6 +151,10 @@ include __DIR__ . '/comuns/header.php'; ?>
             <a href="/Agenda/calendario" class="btn btn-outline-primary active"><i class="bi bi-calendar3"></i> Calendario</a>
         </div>
 
+        <a href="/CompromissoRecorrente" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-repeat"></i> Atividades recorrentes
+        </a>
+
         <div class="d-flex align-items-center gap-2">
             <a href="/Agenda/calendario?ano=<?= $mesAnterior->format('Y') ?>&mes=<?= $mesAnterior->format('n') ?>"
                 class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left"></i></a>
@@ -224,6 +230,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                             href="/Agenda/form/<?= (int) $evento['id'] ?>"
                             title="<?= htmlspecialchars($rotuloTipo[$evento['tipo']] ?? $evento['tipo']) ?> - <?= htmlspecialchars(date('H:i', strtotime($evento['data_inicio']))) ?>">
                             <?= htmlspecialchars(date('H:i', strtotime($evento['data_inicio']))) ?>
+                            <?php if (!empty($evento['recorrencia_id'])): ?><i class="bi bi-arrow-repeat" title="Atividade recorrente"></i><?php endif; ?>
                             <?= htmlspecialchars($evento['titulo']) ?>
                         </a>
                     <?php endforeach; ?>

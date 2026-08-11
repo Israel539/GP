@@ -31,8 +31,14 @@ class Agenda extends BaseController
         }
 
         $compromissos = $this->model->listarPorUsuario((int) $usuario['id'], $filtro);
+        $compromissosRecorrentes = array_values(array_filter($compromissos, fn ($c) => !empty($c['recorrencia_id'])));
+        $compromissos = array_values(array_filter($compromissos, fn ($c) => empty($c['recorrencia_id'])));
 
-        return $this->view("agenda", ['compromissos' => $compromissos, 'filtro' => $filtro]);
+        return $this->view("agenda", [
+            'compromissos' => $compromissos,
+            'compromissosRecorrentes' => $compromissosRecorrentes,
+            'filtro' => $filtro,
+        ]);
     }
 
     /**

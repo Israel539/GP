@@ -50,10 +50,10 @@ class CompromissoModel extends BaseModel
 
         $sql = "INSERT INTO compromissos
                     (usuario_id, titulo, descricao, tipo, data_inicio, data_fim, local, status,
-                     notificar_whatsapp, notificar_email)
+                     notificar_whatsapp, notificar_email, recorrencia_id)
                 VALUES
                     (:usuario_id, :titulo, :descricao, :tipo, :data_inicio, :data_fim, :local, :status,
-                     :notificar_whatsapp, :notificar_email)";
+                     :notificar_whatsapp, :notificar_email, :recorrencia_id)";
 
         $id = $this->connDb->insert($sql, [
             'usuario_id'         => $usuarioId,
@@ -66,6 +66,7 @@ class CompromissoModel extends BaseModel
             'status'             => self::STATUS_PENDENTE,
             'notificar_whatsapp' => !empty($dados['notificar_whatsapp']) ? 1 : 0,
             'notificar_email'    => !empty($dados['notificar_email']) ? 1 : 0,
+            'recorrencia_id'     => $dados['recorrencia_id'] ?? null,
         ]);
 
         return ['ok' => true, 'erro' => null, 'id' => $id];

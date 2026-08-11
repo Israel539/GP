@@ -23,3 +23,26 @@
 @media (max-width: 768px) {
   .plano-img { max-height: 260px; }
 }
+
+/* Scroll container para listas internas */
+.agenda-scroll-container,
+.lista-scroll-container {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.agenda-scroll-container::-webkit-scrollbar,
+.lista-scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.agenda-scroll-container::-webkit-scrollbar-thumb,
+.lista-scroll-container::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
+}
+
+.agenda-scroll-container::-webkit-scrollbar-track,
+.lista-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
