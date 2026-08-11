@@ -10,14 +10,12 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GP</title>
-    <link rel="stylesheet" href="<?= baseUrl() ?>style.css">
+    <link rel="stylesheet" href="<?= baseUrl() ?>style.css?v=<?= @filemtime(__DIR__ . '/../../../public/style.css') ?: time() ?>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
-        /* Imagem do produto em Planos de Compra -- um selo pequeno, nao um
-           banner gigante. No hover, aumenta um pouco (nao tela cheia) pra
-           dar uma espiada melhor na imagem sem estourar o layout. */
+        /* Imagem do produto em Planos de Compra -- um selo pequeno*/
         .plano-img-thumb {
             width: 64px;
             height: 64px;
