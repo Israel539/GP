@@ -91,6 +91,9 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
                         <li class="nav-item">
                             <a class="nav-link" href="/Cartao">Cartoes</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/Usuario/perfil">Perfil</a>
+                        </li>
 
                         <?php if ($ehAdmin): ?>
                             <li class="nav-item dropdown">

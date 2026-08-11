@@ -316,4 +316,17 @@ class UsuarioModel extends BaseModel
             'id'    => $usuarioId,
         ]);
     }
+
+    /**
+     * deletar
+     * Exclui o usuário e todos os dados relacionados via foreign keys.
+     *
+     * @param int $usuarioId
+     * @return int Linhas afetadas
+     */
+    public function deletar(int $usuarioId): int
+    {
+        $sql = "DELETE FROM usuarios WHERE id = :id";
+        return $this->connDb->delete($sql, ['id' => $usuarioId]);
+    }
 }
