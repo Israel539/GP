@@ -194,9 +194,12 @@ class CompromissoModel extends BaseModel
      *
      * @param int $usuarioId
      * @param string $filtro 'hoje'|'semana'|'todos'
+     * @param string|null $busca Filtra por titulo (LIKE, case-insensitive)
+     * @param string|null $dataBusca Filtra por uma data especifica 'Y-m-d'
+     *        (compara so a parte de data de data_inicio)
      * @return array
      */
-    public function listarPorUsuario(int $usuarioId, string $filtro = 'todos'): array
+    public function listarPorUsuario(int $usuarioId, string $filtro = 'todos', ?string $busca = null, ?string $dataBusca = null): array
     {
         $sql = "SELECT * FROM compromissos WHERE usuario_id = :usuario_id";
         $params = ['usuario_id' => $usuarioId];
@@ -205,6 +208,16 @@ class CompromissoModel extends BaseModel
             $sql .= " AND DATE(data_inicio) = CURDATE()";
         } elseif ($filtro === 'semana') {
             $sql .= " AND data_inicio BETWEEN CURDATE() AND (CURDATE() + INTERVAL 7 DAY)";
+        }
+
+        if (!empty($busca)) {
+            $sql .= " AND titulo LIKE :busca";
+            $params['busca'] = '%' . $busca . '%';
+        }
+
+        if (!empty($dataBusca)) {
+            $sql .= " AND DATE(data_inicio) = :data_busca";
+            $params['data_busca'] = $dataBusca;
         }
 
         $sql .= " ORDER BY data_inicio ASC, id ASC";
@@ -319,6 +332,61 @@ class CompromissoModel extends BaseModel
     {
         $sql = "DELETE FROM compromissos WHERE id = :id AND usuario_id = :usuario_id";
         $this->connDb->delete($sql, ['id' => $id, 'usuario_id' => $usuarioId]);
+    }
+
+    /**
+     * excluirEmMassa
+     * RN de autorizacao (mesmo espirito de usuarioEhDono/excluir): o
+     * WHERE usuario_id = :usuario_id garante que so os ids realmente donos
+     * do usuario logado sao apagados, mesmo que alguem tente injetar um id
+     * de outra pessoa na lista.
+     *
+     * @param int[] $ids
+     * @param int $usuarioId
+     * @return int Quantidade de linhas efetivamente excluidas
+     */
+    public function excluirEmMassa(array $ids, int $usuarioId): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $placeholders = [];
+        $params = ['usuario_id' => $usuarioId];
+        foreach ($ids as $indice => $id) {
+            $chave = "id{$indice}";
+            $placeholders[] = ":{$chave}";
+            $params[$chave] = $id;
+        }
+
+        $sql = "DELETE FROM compromissos WHERE usuario_id = :usuario_id AND id IN (" . implode(',', $placeholders) . ")";
+
+        return (int) $this->connDb->delete($sql, $params);
+    }
+
+    /**
+     * excluirConcluidosAntigos
+     * Usado pelo cron de limpeza automatica (item 7 da Agenda -- ver
+     * scripts/limpar_compromissos_concluidos.php). So apaga compromissos:
+     *  - com status = 'concluido';
+     *  - cuja ultima atualizacao (atualizado_em) passou de $dias dias;
+     *  - cujo dono tenha a preferencia usuarios.agenda_limpeza_automatica = 1
+     *    (opt-in explicito, ver migracao 005).
+     *
+     * @param int $dias
+     * @return int Quantidade de compromissos excluidos
+     */
+    public function excluirConcluidosAntigos(int $dias = 30): int
+    {
+        $sql = "DELETE c FROM compromissos c
+                INNER JOIN usuarios u ON u.id = c.usuario_id
+                WHERE c.status = :status
+                  AND u.agenda_limpeza_automatica = 1
+                  AND c.atualizado_em < (NOW() - INTERVAL :dias DAY)";
+
+        return (int) $this->connDb->delete($sql, ['status' => self::STATUS_CONCLUIDO, 'dias' => $dias]);
     }
 
     /**

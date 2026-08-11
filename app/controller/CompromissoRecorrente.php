@@ -111,12 +111,10 @@ class CompromissoRecorrente extends BaseController
             return header("Location: /CompromissoRecorrente/form/{$id}");
         }
 
+        $dados['notificar_email'] = !empty($dados['notificar_email']) ? 1 : 0;
+
         $this->model->atualizar($id, $dados);
 
-        // Nota: alterar o horario/dia NAO reajusta compromissos que ja
-        // foram gerados no passado/futuro proximo -- so vale pras proximas
-        // ocorrencias a partir de agora. Editar cada ocorrencia ja gerada
-        // continua funcionando normal, como qualquer compromisso da agenda.
         Session::set('msgSucesso', 'Atividade recorrente atualizada.');
         return header('Location: /CompromissoRecorrente');
     }

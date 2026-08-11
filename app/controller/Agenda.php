@@ -30,14 +30,33 @@ class Agenda extends BaseController
             $filtro = 'todos';
         }
 
-        $compromissos = $this->model->listarPorUsuario((int) $usuario['id'], $filtro);
+        $busca     = trim((string) ($this->request->getQuery('busca') ?? ''));
+        $dataBusca = trim((string) ($this->request->getQuery('dataBusca') ?? ''));
+
+        // Validacao simples da data (Y-m-d), pra nao mandar lixo pro banco
+        // se alguem digitar algo fora do formato direto na URL.
+        if ($dataBusca !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dataBusca)) {
+            $dataBusca = '';
+        }
+
+        $compromissos = $this->model->listarPorUsuario(
+            (int) $usuario['id'],
+            $filtro,
+            $busca !== '' ? $busca : null,
+            $dataBusca !== '' ? $dataBusca : null
+        );
         $compromissosRecorrentes = array_values(array_filter($compromissos, fn ($c) => !empty($c['recorrencia_id'])));
         $compromissos = array_values(array_filter($compromissos, fn ($c) => empty($c['recorrencia_id'])));
+
+        $usuarioModel = $this->model('Usuario');
 
         return $this->view("agenda", [
             'compromissos' => $compromissos,
             'compromissosRecorrentes' => $compromissosRecorrentes,
             'filtro' => $filtro,
+            'busca' => $busca,
+            'dataBusca' => $dataBusca,
+            'limpezaAutomaticaAtiva' => $usuarioModel->agendaLimpezaAutomaticaAtiva((int) $usuario['id']),
         ]);
     }
 
@@ -239,6 +258,60 @@ class Agenda extends BaseController
         $this->model->excluir($id, (int) $usuario['id']);
         Session::set('msgSucesso', 'Compromisso excluido.');
         return header("Location: /Agenda");
+    }
+
+    /**
+     * excluirEmMassa
+     * URL: /Agenda/excluirEmMassa (POST)
+     * Recebe ids[] (checkboxes marcados na listagem) e apaga so os que
+     * pertencem ao usuario logado -- ver CompromissoModel::excluirEmMassa().
+     *
+     * @return void
+     */
+    public function excluirEmMassa()
+    {
+        $usuario = $this->usuarioLogado();
+        $dados   = $this->request->getPost();
+        $ids     = $dados['ids'] ?? [];
+
+        if (!is_array($ids) || empty($ids)) {
+            Session::set('msgError', 'Selecione ao menos um compromisso para excluir.');
+            return header('Location: /Agenda');
+        }
+
+        $totalExcluido = $this->model->excluirEmMassa($ids, (int) $usuario['id']);
+
+        if ($totalExcluido > 0) {
+            Session::set('msgSucesso', $totalExcluido . ' compromisso(s) excluido(s).');
+        } else {
+            Session::set('msgError', 'Nenhum compromisso pode ser excluido.');
+        }
+
+        return header('Location: /Agenda');
+    }
+
+    /**
+     * configurarLimpezaAutomatica
+     * URL: /Agenda/configurarLimpezaAutomatica (POST)
+     * Liga/desliga a preferencia do usuario de excluir automaticamente (via
+     * cron) os compromissos concluidos ha mais de 30 dias. Ver migracao 005
+     * e scripts/limpar_compromissos_concluidos.php.
+     *
+     * @return void
+     */
+    public function configurarLimpezaAutomatica()
+    {
+        $usuario = $this->usuarioLogado();
+        $dados   = $this->request->getPost();
+        $ativa   = !empty($dados['agenda_limpeza_automatica']);
+
+        $this->model('Usuario')->definirLimpezaAutomaticaAgenda((int) $usuario['id'], $ativa);
+
+        Session::set('msgSucesso', $ativa
+            ? 'Exclusao automatica ativada: compromissos concluidos ha mais de 30 dias serao apagados pelo cron.'
+            : 'Exclusao automatica desativada.');
+
+        return header('Location: /Agenda');
     }
 
     /**

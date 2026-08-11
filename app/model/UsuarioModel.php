@@ -62,6 +62,35 @@ class UsuarioModel extends BaseModel
     }
 
     /**
+     * agendaLimpezaAutomaticaAtiva
+     * Le a preferencia do usuario de excluir automaticamente (via cron)
+     * compromissos concluidos ha mais de 30 dias -- ver migracao 005.
+     *
+     * @param int $usuarioId
+     * @return bool
+     */
+    public function agendaLimpezaAutomaticaAtiva(int $usuarioId): bool
+    {
+        $sql = "SELECT agenda_limpeza_automatica FROM usuarios WHERE id = :id LIMIT 1";
+        $linha = $this->connDb->select($sql, ['id' => $usuarioId], 'one');
+
+        return !empty($linha) && (int) $linha['agenda_limpeza_automatica'] === 1;
+    }
+
+    /**
+     * definirLimpezaAutomaticaAgenda
+     *
+     * @param int $usuarioId
+     * @param bool $ativa
+     * @return void
+     */
+    public function definirLimpezaAutomaticaAgenda(int $usuarioId, bool $ativa): void
+    {
+        $sql = "UPDATE usuarios SET agenda_limpeza_automatica = :ativa WHERE id = :id";
+        $this->connDb->update($sql, ['ativa' => $ativa ? 1 : 0, 'id' => $usuarioId]);
+    }
+
+    /**
      * insert
      * Cadastra um novo usuário. Sempre entra como NIVEL_COMUM -- ninguém vira
      * admin via formulário público, só via alterarNivel() por outro admin

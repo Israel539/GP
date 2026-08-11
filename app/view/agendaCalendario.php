@@ -12,126 +12,6 @@
  */
 include __DIR__ . '/comuns/header.php'; ?>
 
-<style>
-    .cal-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 1px;
-        background: #dee2e6;
-        border: 1px solid #dee2e6;
-    }
-    .cal-cabecalho {
-        background: #f8f9fa;
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.8rem;
-        padding: 6px 4px;
-        text-transform: uppercase;
-        color: #6c757d;
-    }
-    .cal-dia {
-        background: #fff;
-        min-height: 110px;
-        padding: 4px;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-    }
-    .cal-dia.fora-do-mes {
-        background: #f8f9fa;
-    }
-    .cal-dia.fora-do-mes .cal-numero {
-        color: #adb5bd;
-    }
-    .cal-dia.hoje {
-        background: #fff8e1;
-    }
-    .cal-numero-linha {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2px;
-    }
-    .cal-numero {
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-    .cal-dia.hoje .cal-numero {
-        background: #0d6efd;
-        color: #fff;
-        border-radius: 50%;
-        width: 22px;
-        height: 22px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .cal-add {
-        opacity: 0;
-        text-decoration: none;
-        font-size: 0.9rem;
-        line-height: 1;
-    }
-    .cal-dia:hover .cal-add {
-        opacity: 1;
-    }
-    .cal-evento {
-        display: block;
-        font-size: 0.72rem;
-        padding: 1px 4px;
-        border-radius: 4px;
-        margin-bottom: 2px;
-        text-decoration: none;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .cal-evento.tipo-reuniao_presencial { background: #cfe2ff; color: #084298; }
-    .cal-evento.tipo-tarefa_pessoal     { background: #d1e7dd; color: #0f5132; }
-    .cal-evento.tipo-lembrete           { background: #fff3cd; color: #664d03; }
-    .cal-evento.tipo-outro              { background: #e2e3e5; color: #41464b; }
-    .cal-evento.status-concluido        { text-decoration: line-through; opacity: 0.65; }
-    .cal-evento.status-cancelado        { text-decoration: line-through; opacity: 0.5; }
-    .cal-dia.feriado {
-        background: #fff0f0;
-    }
-    .cal-feriado {
-        display: block;
-        font-size: 0.68rem;
-        font-weight: 600;
-        color: #b02a37;
-        background: #f8d7da;
-        border-radius: 4px;
-        padding: 1px 4px;
-        margin-bottom: 3px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .cal-comemorativa {
-        display: block;
-        font-size: 0.68rem;
-        font-weight: 600;
-        color: #6f1d75;
-        background: #f1d9f5;
-        border-radius: 4px;
-        padding: 1px 4px;
-        margin-bottom: 3px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .cal-mais {
-        font-size: 0.72rem;
-        color: #6c757d;
-        text-decoration: none;
-    }
-    @media (max-width: 767px) {
-        .cal-dia { min-height: 70px; }
-        .cal-evento { font-size: 0.65rem; }
-    }
-</style>
-
 <div class="container-fluid py-5" style="max-width: 1100px;">
 
     <div class="row mb-4">
@@ -226,7 +106,8 @@ include __DIR__ . '/comuns/header.php'; ?>
                     <?php endif; ?>
 
                     <?php foreach (array_slice($eventosDia, 0, $limite) as $evento): ?>
-                        <a class="cal-evento tipo-<?= htmlspecialchars($evento['tipo']) ?> status-<?= htmlspecialchars($evento['status']) ?>"
+                        <?php $ehRecorrente = !empty($evento['recorrencia_id']); ?>
+                        <a class="cal-evento tipo-<?= htmlspecialchars($evento['tipo']) ?> status-<?= htmlspecialchars($evento['status']) ?> <?= $ehRecorrente ? 'cal-evento-recorrente' : '' ?>"
                             href="/Agenda/form/<?= (int) $evento['id'] ?>"
                             title="<?= htmlspecialchars($rotuloTipo[$evento['tipo']] ?? $evento['tipo']) ?> - <?= htmlspecialchars(date('H:i', strtotime($evento['data_inicio']))) ?>">
                             <?= htmlspecialchars(date('H:i', strtotime($evento['data_inicio']))) ?>
@@ -251,6 +132,7 @@ include __DIR__ . '/comuns/header.php'; ?>
         <span><span class="badge" style="background:#d1e7dd;color:#0f5132;">&nbsp;&nbsp;</span> Tarefa pessoal</span>
         <span><span class="badge" style="background:#fff3cd;color:#664d03;">&nbsp;&nbsp;</span> Lembrete</span>
         <span><span class="badge" style="background:#e2e3e5;color:#41464b;">&nbsp;&nbsp;</span> Outro</span>
+        <span><span class="badge cal-evento-recorrente" style="background:#cfe2ff;color:#084298;">&nbsp;&nbsp;</span> Compromisso recorrente (borda roxa)</span>
     </div>
 
 </div>

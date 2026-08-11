@@ -190,7 +190,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                             </form>
                         <?php endif; ?>
 
-                       
+
                         <form action="/PlanoCompra/excluir/<?= (int) $plano['id'] ?>" method="POST" class="ms-auto">
                             <?= \App\Library\Csrf::getHiddenField() ?>
                             <button type="submit" class="btn btn-outline-danger"
