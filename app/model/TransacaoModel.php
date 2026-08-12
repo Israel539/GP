@@ -238,7 +238,8 @@ class TransacaoModel extends BaseModel
         $sql = "SELECT t.*, c.nome AS categoria_nome
                 FROM transacoes t
                 LEFT JOIN categorias c ON c.id = t.categoria_id
-                WHERE t.conta_id = :conta_id";
+                WHERE t.conta_id = :conta_id
+                  AND t.excluido_em IS NULL";
 
         $params = ['conta_id' => $contaId];
 
@@ -280,6 +281,7 @@ class TransacaoModel extends BaseModel
                 INNER JOIN contas c ON c.id = t.conta_id
                 WHERE c.usuario_id = :usuario_id
                   AND t.status = 'confirmada'
+                  AND t.excluido_em IS NULL
                   AND MONTH(t.data_fato_gerador) = MONTH(CURDATE())
                   AND YEAR(t.data_fato_gerador) = YEAR(CURDATE())
                 GROUP BY t.tipo";
@@ -307,6 +309,7 @@ class TransacaoModel extends BaseModel
                 FROM transacoes t
                 LEFT JOIN categorias c ON c.id = t.categoria_id
                 WHERE t.fatura_id = :fatura_id
+                  AND t.excluido_em IS NULL
                 ORDER BY t.data_fato_gerador DESC";
 
         return $this->connDb->select($sql, ['fatura_id' => $faturaId]);
@@ -383,9 +386,17 @@ class TransacaoModel extends BaseModel
      * excluir
      * Por coerencia com o espirito da RN07, transacoes vindas da API nao
      * podem ser excluidas manualmente (assim como nao podem ser editadas) --
-     * so lancamentos manuais podem. Se uma transacao de credito manual for
-     * excluida antes da fatura ser paga, desconta o valor da fatura tambem,
-     * para nao deixar residuo cobrado indevidamente.
+     * so lancamentos manuais podem.
+     *
+     * Isso e um SOFT DELETE (marca 'excluido_em'), nao um DELETE de verdade
+     * -- a transacao fica na "lixeira" por 1 dia, podendo ser restaurada
+     * (ver restaurar() abaixo). A exclusao definitiva so acontece via
+     * purgarExcluidasAntigas(), rodada pelo cron depois desse prazo.
+     *
+     * Se uma transacao de credito manual for excluida antes da fatura ser
+     * paga, desconta o valor da fatura tambem (mesmo efeito pratico de
+     * antes) -- se a transacao for restaurada dentro do prazo, o valor
+     * volta pra fatura (ver restaurar()).
      *
      * @param int $transacaoId
      * @return bool
@@ -402,6 +413,10 @@ class TransacaoModel extends BaseModel
             return false; // RN07: imutavel, inclusive para exclusao
         }
 
+        if (!empty($transacao['excluido_em'])) {
+            return false; // ja esta na lixeira, nada a fazer
+        }
+
         if (!empty($transacao['fatura_id'])) {
             $faturaModel = new FaturaModel();
             $fatura = $faturaModel->buscarPorId((int) $transacao['fatura_id']);
@@ -411,9 +426,96 @@ class TransacaoModel extends BaseModel
             }
         }
 
-        $sql = "DELETE FROM transacoes WHERE id = :id";
-        $this->connDb->delete($sql, ['id' => $transacaoId]);
+        $sql = "UPDATE transacoes SET excluido_em = NOW() WHERE id = :id";
+        $this->connDb->update($sql, ['id' => $transacaoId]);
 
         return true;
+    }
+
+    /**
+     * restaurar
+     * Traz de volta uma transacao que esta na lixeira -- SO dentro do prazo
+     * de 1 dia a partir da exclusao (regra pedida: "prazo pra restaurar
+     * seja apenas de um dia"). Depois desse prazo, purgarExcluidasAntigas()
+     * ja deve ter apagado de vez, mas a checagem aqui e a garantia mesmo
+     * que o cron ainda nao tenha rodado.
+     *
+     * Se a transacao era de credito com fatura em aberto, devolve o valor
+     * pra fatura (reverso exato do que excluir() fez).
+     *
+     * @param int $transacaoId
+     * @return bool
+     */
+    public function restaurar(int $transacaoId): bool
+    {
+        $transacao = $this->buscarPorId($transacaoId);
+
+        if (count($transacao) === 0 || empty($transacao['excluido_em'])) {
+            return false; // nao existe, ou nao estava excluida
+        }
+
+        $prazoExpirado = strtotime($transacao['excluido_em']) < strtotime('-1 day');
+        if ($prazoExpirado) {
+            return false; // prazo de 1 dia pra restaurar ja passou
+        }
+
+        if (!empty($transacao['fatura_id'])) {
+            $faturaModel = new FaturaModel();
+            $fatura = $faturaModel->buscarPorId((int) $transacao['fatura_id']);
+
+            if (count($fatura) > 0 && $fatura['status'] !== FaturaModel::STATUS_PAGA) {
+                $faturaModel->adicionarValor((int) $transacao['fatura_id'], (float) $transacao['valor']);
+            }
+        }
+
+        $sql = "UPDATE transacoes SET excluido_em = NULL WHERE id = :id";
+        $this->connDb->update($sql, ['id' => $transacaoId]);
+
+        return true;
+    }
+
+    /**
+     * listarExcluidasRecentes
+     * A "lixeira" exibida na tela de extrato: transacoes excluidas dessa
+     * conta ainda dentro do prazo de restauracao (1 dia). Passado o prazo,
+     * elas somem daqui mesmo antes do cron rodar (a query ja filtra),
+     * ainda que o registro fisico so suma do banco quando o cron passar.
+     *
+     * @param int $contaId
+     * @return array
+     */
+    public function listarExcluidasRecentes(int $contaId): array
+    {
+        $sql = "SELECT t.*, c.nome AS categoria_nome
+                FROM transacoes t
+                LEFT JOIN categorias c ON c.id = t.categoria_id
+                WHERE t.conta_id = :conta_id
+                  AND t.excluido_em IS NOT NULL
+                  AND t.excluido_em > (NOW() - INTERVAL 1 DAY)
+                ORDER BY t.excluido_em DESC";
+
+        return $this->connDb->select($sql, ['conta_id' => $contaId]);
+    }
+
+    /**
+     * purgarExcluidasAntigas
+     * Usado pelo cron (scripts/purgar_transacoes_excluidas.php): apaga de
+     * vez (DELETE de verdade) as transacoes que estao na lixeira ha mais de
+     * 1 dia -- e so a partir daqui que a exclusao vira irreversivel.
+     *
+     * @param int $horasRetencao Prazo de restauracao, em horas (padrao 24 = 1 dia)
+     * @return int Quantidade de transacoes apagadas definitivamente
+     */
+    public function purgarExcluidasAntigas(int $horasRetencao = 24): int
+    {
+        // Interpola o numero direto (em vez de bind por parametro nomeado):
+        // e um int vindo do tipo do parametro da funcao (nunca de input do
+        // usuario), e evita qualquer inconsistencia de driver com
+        // "INTERVAL :param HOUR" em bind nomeado.
+        $sql = "DELETE FROM transacoes
+                WHERE excluido_em IS NOT NULL
+                  AND excluido_em < (NOW() - INTERVAL {$horasRetencao} HOUR)";
+
+        return $this->connDb->delete($sql, []);
     }
 }

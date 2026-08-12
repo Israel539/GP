@@ -80,6 +80,7 @@ class OrcamentoModel extends BaseModel
                           AND t.categoria_id = o.categoria_id
                           AND t.tipo = 'despesa'
                           AND t.status = 'confirmada'
+                          AND t.excluido_em IS NULL
                           AND MONTH(t.data_fato_gerador) = MONTH(CURDATE())
                           AND YEAR(t.data_fato_gerador) = YEAR(CURDATE())
                     ), 0) AS gasto_mes

@@ -9,6 +9,9 @@ include __DIR__ . '/comuns/header.php'; ?>
             <h2>Minhas Contas</h2>
         </div>
         <div class="col-4 text-end">
+            <a href="/Conta/form" class="btn btn-primary me-2">
+                <i class="bi bi-plus-lg"></i> Nova conta
+            </a>
             <a href="/PlanoCompra" class="btn btn-outline-primary me-2">Planejar compra</a>
         </div>
     </div>

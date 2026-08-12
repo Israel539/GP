@@ -46,9 +46,11 @@ class Transacao extends BaseController
             return $this->negarAcesso();
         }
 
+        $periodo = $this->periodoAtual();
+
         $filtros = array_filter([
-            'data_inicio'  => $_GET['data_inicio'] ?? null,
-            'data_fim'     => $_GET['data_fim'] ?? null,
+            'data_inicio'  => $periodo['data_inicio'],
+            'data_fim'     => $periodo['data_fim'],
             'categoria_id' => $_GET['categoria_id'] ?? null,
         ]);
 
@@ -58,6 +60,7 @@ class Transacao extends BaseController
         $categorias  = $this->categoriaModel->listarDisponiveis((int) $conta['usuario_id']);
         $cartoes     = $this->cartaoModel->listarPorUsuario((int) $conta['usuario_id']);
         $tags        = $this->tagModel->listarPorUsuario((int) $conta['usuario_id']);
+        $lixeira     = $this->model->listarExcluidasRecentes($contaId);
 
         // Tags ja vinculadas a cada transacao, para exibir/editar na linha.
         foreach ($transacoes as &$t) {
@@ -72,6 +75,8 @@ class Transacao extends BaseController
             'cartoes'     => $cartoes,
             'tags'        => $tags,
             'filtros'     => $filtros,
+            'periodo'     => $periodo,
+            'lixeira'     => $lixeira,
         ]);
     }
 
@@ -148,6 +153,11 @@ class Transacao extends BaseController
 
         [$conta, $transacoes, $filtros, $totais] = $this->dadosParaExportacao($contaId);
 
+        // RN08: saldo real da conta (view vw_saldo_contas), independente do
+        // periodo/filtro que estiver sendo exportado -- e o que a pessoa
+        // ve na tela do extrato, agora tambem no PDF.
+        $saldoAtual = $this->contaModel->saldoAtual($contaId);
+
         $categoriaFiltroNome = null;
         if (!empty($filtros['categoria_id'])) {
             foreach ($this->categoriaModel->listarDisponiveis((int) $conta['usuario_id']) as $cat) {
@@ -188,9 +198,11 @@ class Transacao extends BaseController
      */
     protected function dadosParaExportacao(int $contaId): array
     {
+        $periodo = $this->periodoAtual();
+
         $filtros = array_filter([
-            'data_inicio'  => $_GET['data_inicio'] ?? null,
-            'data_fim'     => $_GET['data_fim'] ?? null,
+            'data_inicio'  => $periodo['data_inicio'],
+            'data_fim'     => $periodo['data_fim'],
             'categoria_id' => $_GET['categoria_id'] ?? null,
         ]);
 
@@ -207,6 +219,83 @@ class Transacao extends BaseController
         }
 
         return [$conta, $transacoes, $filtros, $totais];
+    }
+
+    /**
+     * periodoAtual
+     * Resolve qual periodo esta ativo na tela de extrato (e nas
+     * exportacoes, que reusam este mesmo metodo):
+     *
+     * - Por padrao, filtra pelo MES informado em ?mes=YYYY-MM (ou o mes
+     *   atual, se nao vier nada) -- e o que faz o extrato nao virar uma
+     *   lista infinita: so aparece o que e daquele mes, com navegacao
+     *   pra frente/tras entre meses.
+     * - Se vier ?data_inicio= e/ou ?data_fim= na URL, isso tem prioridade
+     *   sobre o filtro por mes (fica como "periodo personalizado", pra
+     *   quem quer um intervalo especifico que nao bate com um mes
+     *   fechado).
+     *
+     * @return array
+     */
+    protected function periodoAtual(): array
+    {
+        $usandoIntervaloCustomizado = !empty($_GET['data_inicio']) || !empty($_GET['data_fim']);
+
+        if ($usandoIntervaloCustomizado) {
+            return [
+                'mes'                          => date('Y-m'),
+                'mes_anterior'                 => date('Y-m', strtotime('-1 month')),
+                'mes_seguinte'                 => date('Y-m', strtotime('+1 month')),
+                'mes_hoje'                     => date('Y-m'),
+                'eh_mes_atual'                 => false,
+                'rotulo'                       => 'Período personalizado',
+                'usando_intervalo_customizado' => true,
+                'data_inicio'                  => $_GET['data_inicio'] ?? null,
+                'data_fim'                     => $_GET['data_fim'] ?? null,
+            ];
+        }
+
+        $mesParam = (string) ($_GET['mes'] ?? '');
+        $mes      = preg_match('/^\d{4}-\d{2}$/', $mesParam) ? $mesParam : date('Y-m');
+
+        $inicioMes = $mes . '-01';
+        $fimMes    = date('Y-m-t', strtotime($inicioMes));
+
+        return [
+            'mes'                          => $mes,
+            'data_inicio'                  => $inicioMes,
+            'data_fim'                     => $fimMes,
+            'mes_anterior'                 => date('Y-m', strtotime($inicioMes . ' -1 month')),
+            'mes_seguinte'                 => date('Y-m', strtotime($inicioMes . ' +1 month')),
+            'mes_hoje'                     => date('Y-m'),
+            'eh_mes_atual'                 => $mes === date('Y-m'),
+            'rotulo'                       => $this->rotuloDoMes($mes),
+            'usando_intervalo_customizado' => false,
+        ];
+    }
+
+    /**
+     * rotuloDoMes
+     * "2026-08" -> "Agosto de 2026". Nao usa setlocale/strftime de
+     * proposito -- em WAMP/Windows a locale pt_BR nem sempre esta instalada,
+     * e isso quebraria o rotulo silenciosamente (viraria em ingles ou vazio)
+     * dependendo do servidor.
+     *
+     * @param string $mes Formato YYYY-MM
+     * @return string
+     */
+    protected function rotuloDoMes(string $mes): string
+    {
+        $nomesMeses = [
+            '01' => 'Janeiro',   '02' => 'Fevereiro', '03' => 'Março',
+            '04' => 'Abril',     '05' => 'Maio',      '06' => 'Junho',
+            '07' => 'Julho',     '08' => 'Agosto',    '09' => 'Setembro',
+            '10' => 'Outubro',   '11' => 'Novembro',  '12' => 'Dezembro',
+        ];
+
+        [$ano, $mesNum] = array_pad(explode('-', $mes), 2, '');
+
+        return ($nomesMeses[$mesNum] ?? $mesNum) . ' de ' . $ano;
     }
 
     /**
@@ -318,6 +407,11 @@ class Transacao extends BaseController
             return header("Location: /Conta");
         }
 
+        if (!empty($transacao['excluido_em'])) {
+            Session::set('msgError', 'Essa transacao esta na lixeira. Restaure antes de editar.');
+            return header("Location: /Transacao/extrato/{$transacao['conta_id']}");
+        }
+
         $contaId = (int) $transacao['conta_id'];
         $usuario = $this->usuarioLogado();
         if (!$this->podeGerenciarConta($contaId, (int) $usuario['id'])) {
@@ -360,6 +454,11 @@ class Transacao extends BaseController
 
         if ($transacao['origem'] !== 'manual') {
             Session::set('msgError', 'Somente transacoes manuais podem ser editadas.');
+            return header("Location: /Transacao/extrato/{$transacao['conta_id']}");
+        }
+
+        if (!empty($transacao['excluido_em'])) {
+            Session::set('msgError', 'Essa transacao esta na lixeira. Restaure antes de editar.');
             return header("Location: /Transacao/extrato/{$transacao['conta_id']}");
         }
 
@@ -406,6 +505,11 @@ class Transacao extends BaseController
 
         if ($transacao['origem'] !== 'manual') {
             Session::set('msgError', 'Somente transacoes manuais podem ser editadas.');
+            return header("Location: /Transacao/extrato/{$transacao['conta_id']}");
+        }
+
+        if (!empty($transacao['excluido_em'])) {
+            Session::set('msgError', 'Essa transacao esta na lixeira. Restaure antes de editar.');
             return header("Location: /Transacao/extrato/{$transacao['conta_id']}");
         }
 
@@ -457,6 +561,8 @@ class Transacao extends BaseController
      * excluir
      * URL: /Transacao/excluir/{id}
      * RN07: TransacaoModel::excluir() ja recusa se origem = api_openfinance.
+     * Isso e um soft-delete -- a transacao vai pra lixeira e pode ser
+     * restaurada em ate 1 dia (ver restaurar()).
      *
      * @return void
      */
@@ -479,9 +585,47 @@ class Transacao extends BaseController
         $ok = $this->model->excluir($transacaoId);
 
         if ($ok) {
-            Session::set('msgSucesso', 'Transacao excluida.');
+            Session::set('msgSucesso', 'Transacao movida para a lixeira. Voce pode restaurar em ate 1 dia.');
+        } elseif (!empty($transacao['excluido_em'])) {
+            Session::set('msgError', 'Essa transacao ja estava na lixeira.');
         } else {
             Session::set('msgError', 'Transacoes importadas via Open Finance nao podem ser excluidas (RN07).');
+        }
+
+        return header("Location: /Transacao/extrato/{$contaId}");
+    }
+
+    /**
+     * restaurar
+     * URL: /Transacao/restaurar/{id}
+     * Traz de volta uma transacao que esta na lixeira, desde que ainda
+     * esteja dentro do prazo de 1 dia (TransacaoModel::restaurar() valida
+     * isso e recusa se ja tiver passado).
+     *
+     * @return void
+     */
+    public function restaurar()
+    {
+        $transacaoId = (int) $this->request->getAction();
+        $transacao   = $this->model->buscarPorId($transacaoId);
+
+        if (count($transacao) === 0) {
+            Session::set('msgError', 'Transacao nao encontrada.');
+            return header("Location: /Conta");
+        }
+
+        $contaId = (int) $transacao['conta_id'];
+        $usuario = $this->usuarioLogado();
+        if (!$this->podeGerenciarConta($contaId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        $ok = $this->model->restaurar($transacaoId);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Transacao restaurada.');
+        } else {
+            Session::set('msgError', 'Nao foi possivel restaurar: o prazo de 1 dia ja passou, ou a transacao nao esta na lixeira.');
         }
 
         return header("Location: /Transacao/extrato/{$contaId}");

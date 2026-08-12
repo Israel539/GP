@@ -10,6 +10,7 @@
  * @var array $transacoes
  * @var array $filtros
  * @var array $totais ['receitas' => float, 'despesas' => float]
+ * @var float $saldoAtual Saldo real da conta agora (RN08) -- independente do periodo exportado
  * @var string|null $categoriaFiltroNome
  * @var array $usuario
  */
@@ -47,7 +48,34 @@
         .info-periodo {
             font-size: 10px;
             color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        .saldo-conta {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px 10px;
             margin-bottom: 14px;
+        }
+
+        .saldo-conta .rotulo {
+            font-size: 9.5px;
+            color: #6c757d;
+            text-transform: uppercase;
+        }
+
+        .saldo-conta .valor {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .saldo-positivo {
+            color: #198754;
+        }
+
+        .saldo-negativo {
+            color: #dc3545;
         }
 
         table.transacoes {
@@ -133,6 +161,13 @@
         Gerado em <?= date('d/m/Y H:i') ?> por <?= htmlspecialchars($usuario['nome'] ?? '') ?>
     </div>
 
+    <div class="saldo-conta">
+        <div class="rotulo">Saldo atual em conta (agora, RN08)</div>
+        <div class="valor <?= $saldoAtual < 0 ? 'saldo-negativo' : 'saldo-positivo' ?>">
+            R$ <?= number_format($saldoAtual, 2, ',', '.') ?>
+        </div>
+    </div>
+
     <?php if (empty($transacoes)): ?>
         <p>Nenhuma transacao encontrada para o periodo/filtro selecionado.</p>
     <?php else: ?>
@@ -177,7 +212,7 @@
             <td class="text-right valor-despesa">R$ <?= number_format($totais['despesas'], 2, ',', '.') ?></td>
         </tr>
         <tr class="linha-total">
-            <td>Saldo do periodo</td>
+            <td>Saldo do período filtrado (receitas − despesas)</td>
             <td class="text-right">R$ <?= number_format($totais['receitas'] - $totais['despesas'], 2, ',', '.') ?></td>
         </tr>
     </table>

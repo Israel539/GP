@@ -7,10 +7,20 @@
  * @var array $cartoes
  * @var array $tags
  * @var array $filtros
+ * @var array $periodo
+ * @var array $lixeira
  */
 include __DIR__ . '/comuns/header.php'; ?>
 
 <div class="container-fluid py-4">
+
+    <div class="row mb-2">
+        <div class="col-12">
+            <a href="/Conta" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left"></i> Trocar de conta
+            </a>
+        </div>
+    </div>
 
     <div class="row mb-3 align-items-center">
         <div class="col-md-6">
@@ -128,17 +138,29 @@ include __DIR__ . '/comuns/header.php'; ?>
         <div class="col-md-8">
 
             <form action="/Transacao/extrato/<?= (int) $conta['id'] ?>" method="GET" class="card card-body mb-3">
+                <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                    <?php
+                    $queryCategoria = !empty($filtros['categoria_id']) ? '&categoria_id=' . (int) $filtros['categoria_id'] : '';
+                    ?>
+                    <a href="?mes=<?= htmlspecialchars($periodo['mes_anterior']) . $queryCategoria ?>"
+                        class="btn btn-outline-secondary btn-sm" title="Mês anterior">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                    <strong class="mx-1"><?= htmlspecialchars($periodo['rotulo']) ?></strong>
+                    <a href="?mes=<?= htmlspecialchars($periodo['mes_seguinte']) . $queryCategoria ?>"
+                        class="btn btn-outline-secondary btn-sm" title="Próximo mês">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                    <?php if (!$periodo['eh_mes_atual'] || $periodo['usando_intervalo_customizado']): ?>
+                        <a href="?mes=<?= htmlspecialchars($periodo['mes_hoje']) . $queryCategoria ?>" class="btn btn-link btn-sm">
+                            Voltar para o mês atual
+                        </a>
+                    <?php endif; ?>
+                </div>
+
+                <input type="hidden" name="mes" value="<?= htmlspecialchars($periodo['mes']) ?>">
+
                 <div class="row g-2 align-items-end">
-                    <div class="col-md-3">
-                        <label class="form-label small">De</label>
-                        <input type="date" name="data_inicio" class="form-control form-control-sm"
-                            value="<?= htmlspecialchars($filtros['data_inicio'] ?? '') ?>">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small">Ate</label>
-                        <input type="date" name="data_fim" class="form-control form-control-sm"
-                            value="<?= htmlspecialchars($filtros['data_fim'] ?? '') ?>">
-                    </div>
                     <div class="col-md-4">
                         <label class="form-label small">Categoria</label>
                         <select name="categoria_id" class="form-select form-select-sm">
@@ -151,8 +173,31 @@ include __DIR__ . '/comuns/header.php'; ?>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <button type="submit" class="btn btn-outline-secondary btn-sm w-100">Filtrar</button>
+                    </div>
+                    <div class="col-md-5 text-end">
+                        <a class="small" data-bs-toggle="collapse" href="#filtroPeriodoCustom" role="button">
+                            Escolher um período específico
+                        </a>
+                    </div>
+                </div>
+
+                <div class="collapse <?= $periodo['usando_intervalo_customizado'] ? 'show' : '' ?> mt-2" id="filtroPeriodoCustom">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label small">De</label>
+                            <input type="date" name="data_inicio" class="form-control form-control-sm"
+                                value="<?= htmlspecialchars($periodo['usando_intervalo_customizado'] ? ($filtros['data_inicio'] ?? '') : '') ?>">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Até</label>
+                            <input type="date" name="data_fim" class="form-control form-control-sm"
+                                value="<?= htmlspecialchars($periodo['usando_intervalo_customizado'] ? ($filtros['data_fim'] ?? '') : '') ?>">
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-text">Preenchendo aqui, o filtro por mês acima é ignorado.</div>
+                        </div>
                     </div>
                 </div>
 
@@ -226,7 +271,7 @@ include __DIR__ . '/comuns/header.php'; ?>
                                         <form action="/Transacao/excluir/<?= (int) $t['id'] ?>" method="POST" class="d-inline">
                                             <?= \App\Library\Csrf::getHiddenField() ?>
                                             <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('Excluir esta transacao?')">Excluir</button>
+                                                onclick="return confirm('Mover esta transacao para a lixeira? Voce podera restaurar em ate 1 dia.')">Excluir</button>
                                         </form>
                                     <?php endif; ?>
                                 </div>
@@ -234,6 +279,55 @@ include __DIR__ . '/comuns/header.php'; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
+            <?php endif; ?>
+
+            <!-- Lixeira: transacoes excluidas nas ultimas 24h, ainda dentro
+                 do prazo de restauracao. Passado esse prazo elas somem daqui
+                 (e o cron ja as apaga de vez do banco). -->
+            <?php if (!empty($lixeira)): ?>
+                <div class="mt-4">
+                    <a class="text-decoration-none" data-bs-toggle="collapse" href="#lixeiraTransacoes" role="button">
+                        <i class="bi bi-trash3"></i> Lixeira (<?= count($lixeira) ?>)
+                    </a>
+                    <div class="collapse mt-2" id="lixeiraTransacoes">
+                        <div class="alert alert-light border small mb-2">
+                            Transações excluídas ficam aqui por até 1 dia, depois somem definitivamente.
+                        </div>
+                        <?php foreach ($lixeira as $t): ?>
+                            <?php
+                            $expiraEm      = strtotime($t['excluido_em']) + 86400;
+                            $horasRestantes = max(0, (int) ceil(($expiraEm - time()) / 3600));
+                            ?>
+                            <div class="card mb-2 border-warning-subtle">
+                                <div class="card-body py-2">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-5">
+                                            <span class="text-decoration-line-through text-muted"><?= htmlspecialchars($t['descricao']) ?></span>
+                                            <div class="small text-muted">
+                                                <?= htmlspecialchars($t['data_fato_gerador']) ?>
+                                                &middot; excluída há <?= htmlspecialchars(date('d/m H:i', strtotime($t['excluido_em']))) ?>
+                                                &middot; expira em <?= $horasRestantes ?>h
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <span class="text-muted">
+                                                <?= $t['tipo'] === 'despesa' ? '-' : '+' ?> R$ <?= number_format((float) $t['valor'], 2, ',', '.') ?>
+                                            </span>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <form action="/Transacao/restaurar/<?= (int) $t['id'] ?>" method="POST" class="d-inline">
+                                                <?= \App\Library\Csrf::getHiddenField() ?>
+                                                <button type="submit" class="btn btn-sm btn-outline-success">
+                                                    <i class="bi bi-arrow-counterclockwise"></i> Restaurar
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             <?php endif; ?>
 
         </div>
