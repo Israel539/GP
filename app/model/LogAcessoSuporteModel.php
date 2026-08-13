@@ -51,7 +51,7 @@ class LogAcessoSuporteModel extends BaseModel
         $sql = "INSERT INTO log_acesso_suporte (admin_id, usuario_alvo_id, tipo_recurso, recurso_id, motivo, expira_em)
                 VALUES (:admin_id, :usuario_alvo_id, :tipo_recurso, :recurso_id, :motivo, :expira_em)";
 
-        $this->connDb->insert($sql, [
+        $id = $this->connDb->insert($sql, [
             'admin_id'        => $adminId,
             'usuario_alvo_id' => $dono['usuario_id'],
             'tipo_recurso'    => $tipoRecurso,
@@ -60,7 +60,7 @@ class LogAcessoSuporteModel extends BaseModel
             'expira_em'       => $expiraEm,
         ]);
 
-        return ['ok' => true, 'erro' => null, 'expiraEm' => $expiraEm];
+        return ['ok' => true, 'erro' => null, 'expiraEm' => $expiraEm, 'id' => $id];
     }
 
     /**
@@ -81,5 +81,94 @@ class LogAcessoSuporteModel extends BaseModel
                 LIMIT " . (int) $limite;
 
         return $this->connDb->select($sql);
+    }
+
+    /**
+     * buscarPorId
+     * Usado pelo chat de suporte (SuporteChat) para conferir quem participa
+     * da sessao (admin_id / usuario_alvo_id) e se ela ainda esta ativa.
+     *
+     * @param int $id
+     * @return array
+     */
+    public function buscarPorId(int $id): array
+    {
+        $sql = "SELECT l.*, admin.nome AS admin_nome, alvo.nome AS alvo_nome
+                FROM log_acesso_suporte l
+                INNER JOIN usuarios admin ON admin.id = l.admin_id
+                LEFT JOIN usuarios alvo ON alvo.id = l.usuario_alvo_id
+                WHERE l.id = :id
+                LIMIT 1";
+
+        return $this->connDb->select($sql, ['id' => $id], 'one');
+    }
+
+    /**
+     * buscarSessaoAtivaParaUsuario
+     * Encontra se o USUARIO ALVO (nao o admin) esta participando de uma
+     * sessao de suporte ativa agora -- e assim que a caixinha de chat
+     * aparece pro lado do usuario comum, que nao tem nada disso guardado na
+     * propria sessao PHP (foi o admin que iniciou o acesso).
+     *
+     * @param int $usuarioAlvoId
+     * @return array Vazio se nao houver sessao ativa
+     */
+    public function buscarSessaoAtivaParaUsuario(int $usuarioAlvoId): array
+    {
+        $sql = "SELECT l.*, admin.nome AS admin_nome, alvo.nome AS alvo_nome
+                FROM log_acesso_suporte l
+                INNER JOIN usuarios admin ON admin.id = l.admin_id
+                LEFT JOIN usuarios alvo ON alvo.id = l.usuario_alvo_id
+                WHERE l.usuario_alvo_id = :usuario_alvo_id
+                  AND l.encerrado_em IS NULL
+                  AND l.expira_em > NOW()
+                ORDER BY l.concedido_em DESC
+                LIMIT 1";
+
+        return $this->connDb->select($sql, ['usuario_alvo_id' => $usuarioAlvoId], 'one');
+    }
+
+    /**
+     * encerrar
+     * Encerra a sessao de suporte antes do prazo de expiracao (chamado pelo
+     * botao "Encerrar suporte" do chat) -- so quem participa da sessao
+     * (o admin que concedeu, ou o proprio usuario alvo) pode encerrar.
+     *
+     * @param int $logId
+     * @param int $usuarioId Quem esta pedindo o encerramento
+     * @return bool
+     */
+    public function encerrar(int $logId, int $usuarioId): bool
+    {
+        $sql = "UPDATE log_acesso_suporte
+                SET encerrado_em = NOW()
+                WHERE id = :id
+                  AND encerrado_em IS NULL
+                  AND (admin_id = :usuario_id OR usuario_alvo_id = :usuario_id)";
+
+        $this->connDb->update($sql, ['id' => $logId, 'usuario_id' => $usuarioId]);
+
+        return true;
+    }
+
+    /**
+     * estaAtiva
+     * Uma sessao esta ativa se ainda nao expirou E ninguem a encerrou antes
+     * da hora.
+     *
+     * @param array $log Registro de log_acesso_suporte (ex: de buscarPorId())
+     * @return bool
+     */
+    public function estaAtiva(array $log): bool
+    {
+        if (empty($log)) {
+            return false;
+        }
+
+        if (!empty($log['encerrado_em'])) {
+            return false;
+        }
+
+        return strtotime($log['expira_em']) > time();
     }
 }

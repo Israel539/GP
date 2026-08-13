@@ -252,12 +252,13 @@ class Admin extends BaseController
         }
 
         Session::set('acessoSuporte', [
+            'id'           => $resultado['id'],
             'tipo_recurso' => $tipoRecurso,
             'recurso_id'   => $recursoId,
             'expira_em'    => $resultado['expiraEm'],
         ]);
 
-        Session::set('msgSucesso', 'Acesso de suporte concedido por 15 minutos. Essa acao foi registrada no log de auditoria.');
+        Session::set('msgSucesso', 'Acesso de suporte concedido por 15 minutos. Essa acao foi registrada no log de auditoria. Uma caixa de chat vai aparecer para você conversar com o usuário durante o atendimento.');
 
         $rotas = [
             'projeto'      => "/Projeto/kanban/{$recursoId}",
