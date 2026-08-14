@@ -258,6 +258,17 @@ class Admin extends BaseController
             'expira_em'    => $resultado['expiraEm'],
         ]);
 
+        // Se o usuario tinha aberto um pedido de suporte pendente pra esse
+        // mesmo recurso, fecha o ciclo sozinho -- ele ve no perfil dele que
+        // foi atendido, sem o admin precisar fazer nada alem de conceder o
+        // acesso normalmente.
+        $this->model('SolicitacaoSuporte')->marcarAtendidaSeExistir(
+            $tipoRecurso,
+            $recursoId,
+            $resultado['usuarioAlvoId'],
+            (int) $admin['id']
+        );
+
         Session::set('msgSucesso', 'Acesso de suporte concedido por 15 minutos. Essa acao foi registrada no log de auditoria. Uma caixa de chat vai aparecer para você conversar com o usuário durante o atendimento.');
 
         $rotas = [
@@ -270,6 +281,23 @@ class Admin extends BaseController
         ];
 
         return header('Location: ' . ($rotas[$tipoRecurso] ?? '/Admin'));
+    }
+
+    /**
+     * solicitacoesSuporte
+     * URL: /Admin/solicitacoesSuporte
+     * Fila de pedidos de suporte abertos pelos usuarios (SolicitacaoSuporte::enviar()),
+     * ainda aguardando atendimento -- cada item tem um link pronto pra
+     * /Admin/suporte ja preenchido com o tipo/recurso pedido (o form ja
+     * suportava isso via query string, nao precisou mudar nada la).
+     *
+     * @return void
+     */
+    public function solicitacoesSuporte()
+    {
+        $pendentes = $this->model('SolicitacaoSuporte')->listarPendentes();
+
+        return $this->view('adminSolicitacoesSuporte', ['pendentes' => $pendentes]);
     }
 
     /**

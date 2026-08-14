@@ -60,7 +60,7 @@ class LogAcessoSuporteModel extends BaseModel
             'expira_em'       => $expiraEm,
         ]);
 
-        return ['ok' => true, 'erro' => null, 'expiraEm' => $expiraEm, 'id' => $id];
+        return ['ok' => true, 'erro' => null, 'expiraEm' => $expiraEm, 'id' => $id, 'usuarioAlvoId' => (int) $dono['usuario_id']];
     }
 
     /**

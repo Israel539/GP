@@ -10,9 +10,14 @@ include __DIR__ . '/comuns/header.php';
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-4">
                         <h2 class="mb-0">Meu Perfil</h2>
-                        <a href="/Usuario/editar" class="btn btn-primary btn-sm">
-                            <i class="bi bi-pencil"></i> Editar perfil
-                        </a>
+                        <div>
+                            <a href="/SolicitacaoSuporte/form" class="btn btn-outline-dark btn-sm">
+                                <i class="bi bi-headset"></i> Solicitar suporte
+                            </a>
+                            <a href="/Usuario/editar" class="btn btn-primary btn-sm">
+                                <i class="bi bi-pencil"></i> Editar perfil
+                            </a>
+                        </div>
                     </div>
 
                     <?= mensagens() ?>

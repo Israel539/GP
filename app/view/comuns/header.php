@@ -106,6 +106,7 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
                                     <li><a class="dropdown-item" href="/Admin/usuarios">Usuarios</a></li>
                                     <li><a class="dropdown-item" href="/Admin/projetos">Todos os projetos</a></li>
                                     <li><a class="dropdown-item" href="/Admin/suporte">Acesso de suporte</a></li>
+                                    <li><a class="dropdown-item" href="/Admin/solicitacoesSuporte">Solicitações de suporte</a></li>
                                     <li><a class="dropdown-item" href="/Admin/suporteHistorico">Log de auditoria</a></li>
                                     <li><a class="dropdown-item" href="/Admin/contatos">Mensagens de contato</a></li>
                                 <li><a class="dropdown-item" href="/Admin/termos">Termos e Políticas</a></li>
@@ -130,20 +131,3 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
             </div>
         </div>
     </nav>
-
-    <?php
-    // Botao "Voltar para o Inicio", igual ao que ja existia no perfil do
-    // usuario -- agora fica no header, entao aparece em TODA pagina
-    // logada (Categoria, Financeiro, Orcamento, Recorrencias, Compras,
-    // Cartoes, Agenda, etc.) sem precisar mexer em cada view uma por uma.
-    // So nao aparece na propria Home (nao faz sentido "voltar pro inicio"
-    // estando ja nele) nem para quem nao esta logado.
-    $exibirVoltarInicio = $estaLogado && !($controllerAtual === 'Home' && $metodoAtual === 'index');
-    ?>
-    <?php if ($exibirVoltarInicio): ?>
-        <div class="container pt-3">
-            <a href="/Home" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left"></i> Voltar para o Início
-            </a>
-        </div>
-    <?php endif; ?>
