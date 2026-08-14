@@ -1,0 +1,13 @@
+<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GP">
+  <defs>
+    <linearGradient id="gpIconGrad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FD9E4A"/>
+      <stop offset="1" stop-color="#E8590C"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="40" height="40" rx="11" fill="url(#gpIconGrad)"/>
+  <rect x="8"  y="8"  width="10" height="10" rx="3" fill="#FFFFFF"/>
+  <rect x="22" y="8"  width="10" height="14" rx="3" fill="#FFFFFF" fill-opacity="0.85"/>
+  <rect x="8"  y="22" width="10" height="10" rx="3" fill="#FFFFFF" fill-opacity="0.85"/>
+  <rect x="22" y="26" width="10" height="6"  rx="3" fill="#FFFFFF" fill-opacity="0.65"/>
+</svg>
