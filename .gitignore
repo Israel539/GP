@@ -3,3 +3,4 @@ vendor/
 storage/cache/
 app/config/cacert.pem
 app/config/Readme.md
+.txt
