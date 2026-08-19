@@ -206,35 +206,61 @@ class PlanoCompraModel extends BaseModel
 
     /**
      * deletar
-     * Soft-delete: marca status='excluido', permite restaurar depois.
+     * Soft-delete: marca status='excluido', permite restaurar depois. Mesma
+     * correcao das funcoes de restaurar (ver comentario acima) -- devolve
+     * true so se a linha realmente existia e foi afetada.
      * @param int $id
      * @return bool
      */
     public function deletar(int $id): bool
     {
         $sql = "UPDATE planos_compra SET status = 'excluido', excluido_em = CURRENT_TIMESTAMP WHERE id = :id";
-        return $this->connDb->update($sql, ['id' => $id]) !== false;
+        return $this->connDb->update($sql, ['id' => $id]) > 0;
     }
 
+    /**
+     * contarExcluidosPorUsuario
+     * Conta so PLANOS RAIZ excluidos (parent_id IS NULL) -- antes contava
+     * tambem itens filhos excluidos (ex: um item dentro de um plano), o que
+     * inflava esse numero com algo que a lista desta tela nunca mostra (a
+     * lista so exibe planos raiz, filhos so aparecem dentro de "Ver
+     * detalhes" do plano pai). Resultado pratico do bug: o botao
+     * "Excluidos (N)" prometia algo que "Restaurar todos" nunca conseguia
+     * mostrar de volta aqui, mesmo funcionando por baixo dos panos.
+     * @param int $usuarioId
+     * @return int
+     */
     public function contarExcluidosPorUsuario(int $usuarioId): int
     {
-        $sql = "SELECT COUNT(*) AS cnt FROM planos_compra WHERE usuario_id = :usuario_id AND status = 'excluido'";
+        $sql = "SELECT COUNT(*) AS cnt FROM planos_compra WHERE usuario_id = :usuario_id AND status = 'excluido' AND parent_id IS NULL";
         $row = $this->connDb->select($sql, ['usuario_id' => $usuarioId], 'one');
         return isset($row['cnt']) ? (int) $row['cnt'] : 0;
     }
 
+    /**
+     * restaurar
+     * So restaura dentro da janela de undo (RESTORE_WINDOW_HOURS). Devolve
+     * true SO se alguma linha foi realmente afetada -- antes comparava com
+     * `!== false`, mas update() nunca devolve false (sempre um int, 0 se
+     * nada mudou), entao aquela checagem dava sempre "sucesso", mesmo sem
+     * restaurar nada de verdade.
+     * @param int $id
+     * @return bool
+     */
     public function restaurar(int $id): bool
     {
         $window = defined('RESTORE_WINDOW_HOURS') ? (int) RESTORE_WINDOW_HOURS : 24;
         $cutoff = date('Y-m-d H:i:s', strtotime("-{$window} hours"));
 
         $sql = "UPDATE planos_compra SET status = 'planejamento', excluido_em = NULL WHERE id = :id AND status = 'excluido' AND excluido_em >= :cutoff";
-        return $this->connDb->update($sql, ['id' => $id, 'cutoff' => $cutoff]) !== false;
+        return $this->connDb->update($sql, ['id' => $id, 'cutoff' => $cutoff]) > 0;
     }
 
     /**
      * restaurarTodosPorUsuario
-     * Restaura todos os planos excluidos dentro da janela de undo.
+     * Restaura todos os planos excluidos dentro da janela de undo. Mesma
+     * correcao do restaurar(): so devolve true se alguma linha foi
+     * realmente afetada.
      */
     public function restaurarTodosPorUsuario(int $usuarioId): bool
     {
@@ -245,9 +271,10 @@ class PlanoCompraModel extends BaseModel
                 SET status = 'planejamento', excluido_em = NULL
                 WHERE usuario_id = :usuario_id
                 AND status = 'excluido'
+                AND parent_id IS NULL
                 AND excluido_em >= :cutoff";
 
-        return $this->connDb->update($sql, ['usuario_id' => $usuarioId, 'cutoff' => $cutoff]) !== false;
+        return $this->connDb->update($sql, ['usuario_id' => $usuarioId, 'cutoff' => $cutoff]) > 0;
     }
 
     /**
@@ -273,7 +300,7 @@ class PlanoCompraModel extends BaseModel
 
     /**
      * atualizarProgresso
-     * Roda a cada parcela adicionada/removida. Compara o guardado com a
+     * Roda a cada parcela adicionada/removida. Compara o gu    o com a
      * meta e muda o status sozinho: planejamento -> em_andamento (primeira
      * parcela), em_andamento -> concluido (bateu a meta). Ignora planos
      * cancelados/excluidos, pra nao reviver algo que o usuario descartou.

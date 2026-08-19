@@ -11,6 +11,14 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GP</title>
     <link rel="icon" type="image/svg+xml" href="<?= baseUrl() ?>assets/img/logo/icon.svg">
+
+    <!-- PWA -->
+    <link rel="manifest" href="<?= baseUrl() ?>manifest.json">
+    <meta name="theme-color" content="#212529">
+    <link rel="apple-touch-icon" href="<?= baseUrl() ?>assets/img/icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GP">
     <link rel="stylesheet" href="<?= baseUrl() ?>style.css?v=<?= @filemtime(__DIR__ . '/../../../public/style.css') ?: time() ?>">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
@@ -133,6 +141,12 @@ $ehAdmin       = $estaLogado && (int) ($usuarioSessao['nivel'] ?? 0) === \App\Mo
     </nav>
 
     <?php
+    // Botao "Voltar para o Inicio", igual ao que ja existia no perfil do
+    // usuario -- agora fica no header, entao aparece em TODA pagina
+    // logada (Categoria, Financeiro, Orcamento, Recorrencias, Compras,
+    // Cartoes, Agenda, etc.) sem precisar mexer em cada view uma por uma.
+    // So nao aparece na propria Home (nao faz sentido "voltar pro inicio"
+    // estando ja nele) nem para quem nao esta logado.
     $exibirVoltarInicio = $estaLogado && !($controllerAtual === 'Home' && $metodoAtual === 'index');
     ?>
     <?php if ($exibirVoltarInicio): ?>
