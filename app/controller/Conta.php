@@ -25,19 +25,43 @@ class Conta extends BaseController
     public function index()
     {
         $usuario = $this->usuarioLogado();
-        $contas = $this->model->listarPorUsuario((int) $usuario['id']);
+        $contas  = $this->model->listarPorUsuario((int) $usuario['id']);
 
-        return $this->view("contas", ['contas' => $contas]);
+        // Widget opcional de dinheiro fisico + saldo em conta + total (ver
+        // migracao 012). So carrega o usuario completo aqui (a sessao so
+        // tem id/nome/email/nivel) porque e a unica tela que precisa desses
+        // 2 campos extras.
+        $usuarioCompleto = $this->model('Usuario')->buscarPorId((int) $usuario['id']);
+        $saldoContasTotal = array_sum(array_column($contas, 'saldo_atual'));
+
+        return $this->view("contas", [
+            'contas'            => $contas,
+            'usuario'           => $usuarioCompleto,
+            'saldoContasTotal'  => $saldoContasTotal,
+        ]);
     }
 
     /**
      * form
+     * URL: /Conta/form (criar) ou /Conta/form/{id} (editar)
      *
      * @return void
      */
     public function form()
     {
-        return $this->view("contaForm");
+        $contaId = (int) $this->request->getAction();
+        $conta = null;
+
+        if ($contaId > 0) {
+            $usuario = $this->usuarioLogado();
+            if (!$this->model->usuarioEhDono($contaId, (int) $usuario['id'])) {
+                Session::set('msgError', 'Conta nao encontrada.');
+                return header('Location: /Conta');
+            }
+            $conta = $this->model->buscarPorId($contaId);
+        }
+
+        return $this->view("contaForm", ['conta' => $conta]);
     }
 
     /**
@@ -67,5 +91,128 @@ class Conta extends BaseController
 
         Session::set('msgError', 'Nao foi possivel criar a conta. Tente novamente.');
         return header("Location: /Conta/form");
+    }
+
+    /**
+     * atualizar
+     * URL: /Conta/atualizar/{id} (POST)
+     *
+     * @return void
+     */
+    public function atualizar()
+    {
+        $contaId = (int) $this->request->getAction();
+        $usuario = $this->usuarioLogado();
+
+        if (!$this->model->usuarioEhDono($contaId, (int) $usuario['id'])) {
+            Session::set('msgError', 'Conta nao encontrada.');
+            return header('Location: /Conta');
+        }
+
+        $dados = $this->request->getPost();
+
+        if (!$this->model->validate($dados)) {
+            Session::set('msgError', 'Verifique os campos destacados e tente novamente.');
+            return header("Location: /Conta/form/{$contaId}");
+        }
+
+        $dados['saldo_inicial'] = str_replace(',', '.', $dados['saldo_inicial'] ?? '0');
+
+        $this->model->atualizar($contaId, $dados);
+
+        Session::set('msgSucesso', 'Conta atualizada com sucesso.');
+        return header('Location: /Conta');
+    }
+
+    /**
+     * excluir
+     * URL: /Conta/excluir/{id} (POST)
+     * Exclusao definitiva -- apaga a conta e TODAS as transacoes ligadas a
+     * ela (FK ON DELETE CASCADE). A view exige confirmacao explicita do
+     * usuario antes de chegar aqui, deixando essa consequencia clara.
+     *
+     * @return void
+     */
+    public function excluir()
+    {
+        $contaId = (int) $this->request->getAction();
+        $usuario = $this->usuarioLogado();
+
+        if (!$this->model->usuarioEhDono($contaId, (int) $usuario['id'])) {
+            Session::set('msgError', 'Conta nao encontrada.');
+            return header('Location: /Conta');
+        }
+
+        $ok = $this->model->deletar($contaId);
+
+        if ($ok) {
+            Session::set('msgSucesso', 'Conta excluida com sucesso.');
+        } else {
+            Session::set('msgError', 'Nao foi possivel excluir a conta.');
+        }
+
+        return header('Location: /Conta');
+    }
+
+    /**
+     * atualizarSaldoDinheiro
+     * URL: /Conta/atualizarSaldoDinheiro (POST)
+     * Salva o valor de dinheiro fisico do usuario (editado a mao -- ver
+     * migracao 012, nao viola RN08 porque nao e saldo de conta).
+     *
+     * @return void
+     */
+    public function atualizarSaldoDinheiro()
+    {
+        $usuario = $this->usuarioLogado();
+        $post    = $this->request->getPost();
+
+        $valor = (float) str_replace(',', '.', $post['saldo_dinheiro'] ?? '0');
+
+        $this->model('Usuario')->atualizarSaldoDinheiro((int) $usuario['id'], $valor);
+
+        Session::set('msgSucesso', 'Dinheiro físico atualizado.');
+        return header('Location: ' . $this->destinoAposSalvarSaldo($post));
+    }
+
+    /**
+     * alternarExibirSaldoDinheiro
+     * URL: /Conta/alternarExibirSaldoDinheiro (POST)
+     * Liga/desliga o widget de dinheiro fisico + total na tela de Contas.
+     *
+     * @return void
+     */
+    public function alternarExibirSaldoDinheiro()
+    {
+        $usuario = $this->usuarioLogado();
+        $post    = $this->request->getPost();
+
+        $exibir = !empty($post['exibir']);
+
+        $this->model('Usuario')->atualizarPreferenciaExibirSaldoDinheiro((int) $usuario['id'], $exibir);
+
+        return header('Location: ' . $this->destinoAposSalvarSaldo($post));
+    }
+
+    /**
+     * destinoAposSalvarSaldo
+     * O widget de dinheiro fisico aparece tanto na listagem de contas
+     * (/Conta) quanto no extrato de cada conta -- 'voltar_para' (campo
+     * hidden no form) diz pra onde voltar depois de salvar, senao cai no
+     * padrao (/Conta). So aceita caminhos internos comecando com "/", pra
+     * ninguem usar isso como redirecionador aberto pra outro site.
+     *
+     * @param array $post
+     * @return string
+     */
+    protected function destinoAposSalvarSaldo(array $post): string
+    {
+        $destino = (string) ($post['voltar_para'] ?? '');
+
+        if ($destino !== '' && $destino[0] === '/' && (!isset($destino[1]) || $destino[1] !== '/')) {
+            return $destino;
+        }
+
+        return '/Conta';
     }
 }

@@ -9,6 +9,7 @@
  * @var array $filtros
  * @var array $periodo
  * @var array $lixeira
+ * @var array $usuario
  */
 include __DIR__ . '/comuns/header.php'; ?>
 
@@ -32,6 +33,58 @@ include __DIR__ . '/comuns/header.php'; ?>
                 R$ <?= number_format($saldoAtual, 2, ',', '.') ?>
             </div>
             <span class="small text-muted">Saldo calculado em tempo real (RN08)</span>
+        </div>
+    </div>
+
+    <!-- Widget opcional: dinheiro fisico + saldo desta conta (RN08) + total.
+         Desligado por padrao -- so aparece se o usuario ativar a checkbox
+         (preferencia salva por usuario, vale pra todas as contas). -->
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center <?= !empty($usuario['exibir_saldo_dinheiro']) ? 'mb-3' : '' ?>">
+                <strong class="small">Resumo financeiro</strong>
+                <form action="/Conta/alternarExibirSaldoDinheiro" method="POST" class="d-flex align-items-center gap-2 mb-0">
+                    <?= \App\Library\Csrf::getHiddenField() ?>
+                    <input type="hidden" name="voltar_para" value="/Transacao/extrato/<?= (int) $conta['id'] ?>">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="chkExibirDinheiro"
+                            name="exibir" value="1" onchange="this.form.submit()"
+                            <?= !empty($usuario['exibir_saldo_dinheiro']) ? 'checked' : '' ?>>
+                        <label class="form-check-label small" for="chkExibirDinheiro">Mostrar dinheiro físico</label>
+                    </div>
+                </form>
+            </div>
+
+            <?php if (!empty($usuario['exibir_saldo_dinheiro'])): ?>
+                <div class="row text-center g-2">
+                    <div class="col-md-4 border-end">
+                        <div class="small text-muted mb-1">Dinheiro físico</div>
+                        <form action="/Conta/atualizarSaldoDinheiro" method="POST"
+                            class="d-flex justify-content-center align-items-center gap-1">
+                            <?= \App\Library\Csrf::getHiddenField() ?>
+                            <input type="hidden" name="voltar_para" value="/Transacao/extrato/<?= (int) $conta['id'] ?>">
+                            <span class="small">R$</span>
+                            <input type="text" name="saldo_dinheiro" class="form-control form-control-sm text-center"
+                                style="max-width: 110px;"
+                                value="<?= number_format((float) $usuario['saldo_dinheiro'], 2, ',', '') ?>">
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Salvar</button>
+                        </form>
+                    </div>
+                    <div class="col-md-4 border-end">
+                        <div class="small text-muted mb-1">Saldo desta conta</div>
+                        <div class="fs-6 <?= $saldoAtual < 0 ? 'text-danger' : 'text-success' ?>">
+                            R$ <?= number_format($saldoAtual, 2, ',', '.') ?>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted mb-1">Total (dinheiro + esta conta)</div>
+                        <?php $total = $saldoAtual + (float) $usuario['saldo_dinheiro']; ?>
+                        <div class="fs-6 fw-bold <?= $total < 0 ? 'text-danger' : 'text-success' ?>">
+                            R$ <?= number_format($total, 2, ',', '.') ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -220,66 +273,134 @@ include __DIR__ . '/comuns/header.php'; ?>
             <?php if (empty($transacoes)): ?>
                 <div class="alert alert-secondary">Nenhuma transacao encontrada.</div>
             <?php else: ?>
-                <?php foreach ($transacoes as $t): ?>
-                    <?php $imutavel = $t['origem'] === 'api_openfinance'; ?>
-                    <div class="card mb-2">
-                        <div class="card-body py-2">
-                            <div class="row align-items-center">
-                                <div class="col-md-3">
-                                    <strong><?= htmlspecialchars($t['descricao']) ?></strong>
-                                    <div class="small text-muted">
-                                        <?= htmlspecialchars($t['data_fato_gerador']) ?>
-                                        &middot; <?= htmlspecialchars($t['modalidade']) ?>
-                                        <?php if (!empty($t['parcela_total']) && (int) $t['parcela_total'] > 1): ?>
-                                            <span class="badge bg-warning text-dark" title="Parcela <?= (int) $t['parcela_atual'] ?> de <?= (int) $t['parcela_total'] ?>">
-                                                <?= (int) $t['parcela_atual'] ?>/<?= (int) $t['parcela_total'] ?>
-                                            </span>
-                                        <?php endif; ?>
-                                        <?php if ($imutavel): ?>
-                                            <span class="badge bg-secondary" title="Importado via Open Finance -- RN07: so categoria/tags editaveis">🔒 API</span>
-                                        <?php elseif ($t['origem'] === 'recorrente'): ?>
-                                            <span class="badge bg-info text-dark" title="Lancada automaticamente por uma transacao recorrente">🔁 Recorrente</span>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <span class="<?= $t['tipo'] === 'despesa' ? 'text-danger' : 'text-success' ?>">
-                                        <?= $t['tipo'] === 'despesa' ? '-' : '+' ?> R$ <?= number_format((float) $t['valor'], 2, ',', '.') ?>
-                                    </span>
-                                </div>
-                                <div class="col-md-5">
-                                    <form action="/Transacao/atualizarCategoria/<?= (int) $t['id'] ?>" method="POST" class="d-flex gap-1">
-                                        <?= \App\Library\Csrf::getHiddenField() ?>
-                                        <select name="categoria_id" class="form-select form-select-sm">
-                                            <option value="">-- sem categoria --</option>
-                                            <?php foreach ($categorias as $cat): ?>
-                                                <option value="<?= (int) $cat['id'] ?>"
-                                                    <?= ((int) ($t['categoria_id'] ?? 0) === (int) $cat['id']) ? 'selected' : '' ?>>
-                                                    <?= htmlspecialchars($cat['nome']) ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        <input type="text" name="tags" class="form-control form-control-sm"
-                                            placeholder="tags..."
-                                            value="<?= htmlspecialchars(implode(', ', array_column($t['tags'], 'nome'))) ?>">
-                                        <button type="submit" class="btn btn-outline-primary btn-sm">Salvar</button>
-                                    </form>
-                                </div>
-                                <div class="col-md-2 text-end">
-                                    <?php if (!$imutavel): ?>
-                                        <a href="/Transacao/editar/<?= (int) $t['id'] ?>" class="btn btn-sm btn-outline-secondary me-1">Editar</a>
-                                        <form action="/Transacao/excluir/<?= (int) $t['id'] ?>" method="POST" class="d-inline">
-                                            <?= \App\Library\Csrf::getHiddenField() ?>
-                                            <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('Mover esta transacao para a lixeira? Voce podera restaurar em ate 1 dia.')">Excluir</button>
-                                        </form>
-                                    <?php endif; ?>
-                                </div>
+                <form action="/Transacao/excluirEmMassa/<?= (int) $conta['id'] ?>" method="POST" class="form-selecao-massa" data-lista="transacoes">
+                    <?= \App\Library\Csrf::getHiddenField() ?>
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                            <div class="form-check mb-0">
+                                <input class="form-check-input chk-selecionar-todos" type="checkbox"
+                                    id="selTodosTransacoes" data-alvo="transacoes">
+                                <label class="form-check-label small" for="selTodosTransacoes">Selecionar todos</label>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-outline-danger btn-excluir-selecionados" disabled
+                                onclick="return confirm('Mover as transações selecionadas para a lixeira? Você poderá restaurar em até 1 dia.')">
+                                <i class="bi bi-trash"></i> Excluir selecionadas
+                            </button>
+                        </div>
+                        <div class="card-body p-0">
+                            <div style="max-height: 480px; overflow-y: auto;" class="p-3">
+                                <ul class="list-group list-group-flush mb-0">
+                                    <?php foreach ($transacoes as $t): ?>
+                                        <?php
+                                        $imutavel  = $t['origem'] === 'api_openfinance';
+                                    $ehParcela = !empty($t['parcela_total']) && (int) $t['parcela_total'] > 1;
+                                    ?>
+                                    <li class="list-group-item">
+                                        <div class="d-flex flex-nowrap align-items-center" style="gap: 10px;">
+                                            <div style="flex: 0 0 24px;">
+                                                <?php if (!$imutavel): ?>
+                                                    <input class="form-check-input chk-item chk-transacoes" type="checkbox" name="ids[]" value="<?= (int) $t['id'] ?>">
+                                                <?php endif; ?>
+                                            </div>
+                                            <div style="flex: 1 1 200px; min-width: 140px;">
+                                                <strong><?= htmlspecialchars($t['descricao']) ?></strong>
+                                                <div class="small text-muted">
+                                                    <?= htmlspecialchars($t['data_fato_gerador']) ?>
+                                                    &middot; <?= htmlspecialchars($t['modalidade']) ?>
+                                                    <?php if ($ehParcela): ?>
+                                                        <span class="badge bg-warning text-dark" title="Parcela <?= (int) $t['parcela_atual'] ?> de <?= (int) $t['parcela_total'] ?>">
+                                                            <?= (int) $t['parcela_atual'] ?>/<?= (int) $t['parcela_total'] ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                    <?php if ($imutavel): ?>
+                                                        <span class="badge bg-secondary" title="Importado via Open Finance -- RN07: so categoria/tags editaveis">🔒 API</span>
+                                                    <?php elseif ($t['origem'] === 'recorrente'): ?>
+                                                        <span class="badge bg-info text-dark" title="Lancada automaticamente por uma transacao recorrente">🔁 Recorrente</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <div style="flex: 0 0 100px;">
+                                                <span class="<?= $t['tipo'] === 'despesa' ? 'text-danger' : 'text-success' ?>">
+                                                    <?= $t['tipo'] === 'despesa' ? '-' : '+' ?> R$ <?= number_format((float) $t['valor'], 2, ',', '.') ?>
+                                                </span>
+                                            </div>
+                                            <form action="/Transacao/atualizarCategoria/<?= (int) $t['id'] ?>" method="POST"
+                                                class="d-flex flex-nowrap align-items-center" style="flex: 0 0 auto; gap: 6px;">
+                                                <?= \App\Library\Csrf::getHiddenField() ?>
+                                                <select name="categoria_id" class="form-select form-select-sm" style="flex: 0 0 150px;">
+                                                    <option value="">-- sem categoria --</option>
+                                                    <?php foreach ($categorias as $cat): ?>
+                                                        <option value="<?= (int) $cat['id'] ?>"
+                                                            <?= ((int) ($t['categoria_id'] ?? 0) === (int) $cat['id']) ? 'selected' : '' ?>>
+                                                            <?= htmlspecialchars($cat['nome']) ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                                <input type="text" name="tags" class="form-control form-control-sm" style="flex: 0 0 100px;"
+                                                    placeholder="tags..."
+                                                    value="<?= htmlspecialchars(implode(', ', array_column($t['tags'], 'nome'))) ?>">
+                                                <button type="submit" class="btn btn-outline-primary btn-sm text-nowrap" style="flex: 0 0 auto;">Salvar</button>
+                                            </form>
+                                            <div style="flex: 0 0 160px;" class="text-end">
+                                                <?php if (!$imutavel): ?>
+                                                    <a href="/Transacao/editar/<?= (int) $t['id'] ?>" class="btn btn-sm btn-outline-secondary mb-1">Editar</a>
+                                                    <?php if ($ehParcela): ?>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger mb-1 btn-abrir-modal-parcela"
+                                                            data-grupo="<?= htmlspecialchars($t['grupo_parcela_id']) ?>"
+                                                            data-descricao="<?= htmlspecialchars($t['descricao']) ?>">
+                                                            Excluir
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button type="submit" formaction="/Transacao/excluir/<?= (int) $t['id'] ?>"
+                                                            class="btn btn-sm btn-outline-danger mb-1"
+                                                            onclick="return confirm('Mover esta transacao para a lixeira? Voce podera restaurar em ate 1 dia.')">
+                                                            Excluir
+                                                        </button>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <?php endforeach; ?>
+                                </ul>
                             </div>
                         </div>
                     </div>
-                <?php endforeach; ?>
+                </form>
             <?php endif; ?>
+
+            <!-- Modal compartilhado: excluir parcelas de uma compra (RN pedida:
+                 apagar a compra inteira em grupo, ou escolher so algumas). O
+                 conteudo e carregado via fetch quando abre, porque as parcelas
+                 de uma mesma compra podem estar espalhadas por varios meses --
+                 o extrato so mostra o mes filtrado agora, mas o grupo inteiro
+                 precisa aparecer aqui independente disso. -->
+            <div class="modal fade" id="modalExcluirParcelas" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form action="/Transacao/excluirEmMassa/<?= (int) $conta['id'] ?>" method="POST" id="formExcluirParcelas">
+                            <?= \App\Library\Csrf::getHiddenField() ?>
+                            <div class="modal-header">
+                                <h5 class="modal-title">Excluir parcelas de "<span id="modalParcelaDescricao"></span>"</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="small text-muted">
+                                    Marque quais parcelas dessa compra você quer excluir. Todas vêm marcadas por
+                                    padrão — desmarque as que quer manter.
+                                </p>
+                                <div id="modalParcelaLista">
+                                    <div class="text-center text-muted py-3">Carregando...</div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-danger">Excluir selecionadas</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
 
             <!-- Lixeira: transacoes excluidas nas ultimas 24h, ainda dentro
                  do prazo de restauracao. Passado esse prazo elas somem daqui
@@ -348,6 +469,81 @@ function alternarCampoCartao() {
         document.querySelector('select[name="parcelas"]').value = '1';
     }
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Selecionar todos / excluir selecionadas -- mesmo padrao reutilizavel
+    // ja usado na Agenda (.form-selecao-massa / .chk-selecionar-todos /
+    // .chk-item / .btn-excluir-selecionados), pra ficar identico em toda a
+    // aplicacao.
+    document.querySelectorAll('.form-selecao-massa').forEach(function (form) {
+        var chkTodos = form.querySelector('.chk-selecionar-todos');
+        var chkItens = form.querySelectorAll('.chk-item');
+        var btnExcluir = form.querySelector('.btn-excluir-selecionados');
+
+        function atualizarBotao() {
+            var algumMarcado = Array.prototype.some.call(chkItens, function (c) { return c.checked; });
+            btnExcluir.disabled = !algumMarcado;
+        }
+
+        if (chkTodos) {
+            chkTodos.addEventListener('change', function () {
+                chkItens.forEach(function (c) { c.checked = chkTodos.checked; });
+                atualizarBotao();
+            });
+        }
+
+        chkItens.forEach(function (c) {
+            c.addEventListener('change', function () {
+                if (!c.checked && chkTodos) {
+                    chkTodos.checked = false;
+                }
+                atualizarBotao();
+            });
+        });
+
+        atualizarBotao();
+    });
+
+    // Modal "excluir parcelas de uma compra" -- carrega via fetch pq as
+    // parcelas de uma mesma compra podem estar em meses diferentes do que
+    // esta sendo exibido agora no extrato.
+    var modalEl = document.getElementById('modalExcluirParcelas');
+    var modalParcelas = modalEl ? new bootstrap.Modal(modalEl) : null;
+    var listaEl = document.getElementById('modalParcelaLista');
+    var descEl = document.getElementById('modalParcelaDescricao');
+
+    document.querySelectorAll('.btn-abrir-modal-parcela').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var grupo = btn.dataset.grupo;
+            descEl.textContent = btn.dataset.descricao;
+            listaEl.innerHTML = '<div class="text-center text-muted py-3">Carregando...</div>';
+            modalParcelas.show();
+
+            fetch('/Transacao/grupoParcela/<?= (int) $conta['id'] ?>?grupo=' + encodeURIComponent(grupo))
+                .then(function (r) { return r.json(); })
+                .then(function (resp) {
+                    if (!resp.parcelas || !resp.parcelas.length) {
+                        listaEl.innerHTML = '<div class="text-muted small">Nenhuma parcela encontrada.</div>';
+                        return;
+                    }
+                    var html = '';
+                    resp.parcelas.forEach(function (p) {
+                        var valorFormatado = parseFloat(p.valor).toFixed(2).replace('.', ',');
+                        html += '<div class="form-check">'
+                            + '<input class="form-check-input" type="checkbox" name="ids[]" value="' + p.id + '" id="parcChk' + p.id + '" checked>'
+                            + '<label class="form-check-label" for="parcChk' + p.id + '">'
+                            + 'Parcela ' + p.parcela_atual + '/' + p.parcela_total
+                            + ' — R$ ' + valorFormatado + ' (' + p.data_fato_gerador + ')'
+                            + '</label></div>';
+                    });
+                    listaEl.innerHTML = html;
+                })
+                .catch(function () {
+                    listaEl.innerHTML = '<div class="text-danger small">Erro ao carregar as parcelas. Tente novamente.</div>';
+                });
+        });
+    });
+});
 </script>
 
 <?php include __DIR__ . '/comuns/footer.php'; ?>

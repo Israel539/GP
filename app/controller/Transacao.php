@@ -62,6 +62,11 @@ class Transacao extends BaseController
         $tags        = $this->tagModel->listarPorUsuario((int) $conta['usuario_id']);
         $lixeira     = $this->model->listarExcluidasRecentes($contaId);
 
+        // Widget opcional de dinheiro fisico + total (ver migracao 012) --
+        // a sessao so tem id/nome/email/nivel, entao busca o usuario
+        // completo so aqui, que e onde os campos extras sao usados.
+        $usuarioCompleto = $this->model('Usuario')->buscarPorId((int) $usuario['id']);
+
         // Tags ja vinculadas a cada transacao, para exibir/editar na linha.
         foreach ($transacoes as &$t) {
             $t['tags'] = $this->tagModel->listarPorTransacao((int) $t['id']);
@@ -77,6 +82,7 @@ class Transacao extends BaseController
             'filtros'     => $filtros,
             'periodo'     => $periodo,
             'lixeira'     => $lixeira,
+            'usuario'     => $usuarioCompleto,
         ]);
     }
 
@@ -679,6 +685,85 @@ class Transacao extends BaseController
     protected function podeGerenciarConta(int $contaId, int $usuarioId): bool
     {
         return $this->contaModel->usuarioEhDono($contaId, $usuarioId);
+    }
+
+    /**
+     * grupoParcela
+     * URL: /Transacao/grupoParcela/{contaId}?grupo={grupoParcelaId} (GET, JSON)
+     * Usado pelo modal "excluir parcelas": devolve todas as parcelas da
+     * mesma compra (mesmo grupo_parcela_id), mesmo as que estao em outro
+     * mes e por isso nao aparecem no extrato filtrado agora.
+     *
+     * @return void
+     */
+    public function grupoParcela()
+    {
+        $contaId = (int) $this->request->getAction();
+        $usuario = $this->usuarioLogado();
+
+        if (!$this->podeVisualizarConta($contaId, (int) $usuario['id'])) {
+            http_response_code(403);
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(['erro' => 'Sem acesso a esta conta.']);
+            exit;
+        }
+
+        $grupoParcelaId = (string) $this->request->getQuery('grupo');
+
+        if ($grupoParcelaId === '') {
+            http_response_code(400);
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(['erro' => 'Grupo de parcela nao informado.']);
+            exit;
+        }
+
+        $parcelas = $this->model->listarGrupoParcela($grupoParcelaId, $contaId);
+
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode(['parcelas' => $parcelas]);
+        exit;
+    }
+
+    /**
+     * excluirEmMassa
+     * URL: /Transacao/excluirEmMassa/{contaId} (POST)
+     * Recebe uma lista de ids marcados (ids[]) e exclui exatamente essas
+     * (soft-delete, mesma lixeira/prazo de 1 dia das transacoes normais).
+     * Usado tanto pelo "Selecionar todos" + "Excluir selecionadas" geral do
+     * topo da lista, quanto pelo modal "excluir parcelas de uma compra" --
+     * nos dois casos e a mesma operacao: dado um conjunto de ids, excluir
+     * so os marcados (RN pedida: apagar a compra inteira em grupo, ou
+     * escolher so algumas parcelas -- a escolha acontece na tela, aqui so
+     * executa o que foi marcado).
+     *
+     * @return void
+     */
+    public function excluirEmMassa()
+    {
+        $contaId = (int) $this->request->getAction();
+        $usuario = $this->usuarioLogado();
+
+        if (!$this->podeGerenciarConta($contaId, (int) $usuario['id'])) {
+            return $this->negarAcesso();
+        }
+
+        $post = $this->request->getPost();
+        $ids  = $post['ids'] ?? [];
+
+        if (!is_array($ids) || empty($ids)) {
+            Session::set('msgError', 'Selecione ao menos uma parcela para excluir.');
+            return header("Location: /Transacao/extrato/{$contaId}");
+        }
+
+        $total = $this->model->excluirEmMassa($ids, $contaId);
+
+        if ($total > 0) {
+            Session::set('msgSucesso', $total . ' parcela(s) movida(s) para a lixeira. Você pode restaurar em até 1 dia.');
+        } else {
+            Session::set('msgError', 'Nenhuma parcela pode ser excluída.');
+        }
+
+        return header("Location: /Transacao/extrato/{$contaId}");
     }
 
     /**

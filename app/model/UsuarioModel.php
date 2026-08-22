@@ -53,7 +53,8 @@ class UsuarioModel extends BaseModel
     public function buscarPorId(int $id): array
     {
         $sql = "SELECT id, nome, email, cpf, data_nascimento, telefone_whats,
-                       foto, nivel, statusRegistro, criado_em
+                       foto, nivel, statusRegistro, criado_em,
+                       saldo_dinheiro, exibir_saldo_dinheiro
                 FROM usuarios
                 WHERE id = :id
                 LIMIT 1";
@@ -413,5 +414,39 @@ class UsuarioModel extends BaseModel
         $linha = $this->connDb->select($sql, ['id' => $id], 'one');
 
         return $linha['senha'] ?? null;
+    }
+
+    // ------------------------------------------------------------------
+    // SALDO EM DINHEIRO FISICO (widget opcional em /Conta)
+    // ------------------------------------------------------------------
+
+    /**
+     * atualizarSaldoDinheiro
+     * Valor editado a mao pelo usuario -- nao e calculado (ao contrario do
+     * saldo de conta, RN08), entao um simples UPDATE direto e correto aqui.
+     *
+     * @param int $usuarioId
+     * @param float $valor
+     * @return void
+     */
+    public function atualizarSaldoDinheiro(int $usuarioId, float $valor): void
+    {
+        $sql = "UPDATE usuarios SET saldo_dinheiro = :valor WHERE id = :id";
+        $this->connDb->update($sql, ['valor' => $valor, 'id' => $usuarioId]);
+    }
+
+    /**
+     * atualizarPreferenciaExibirSaldoDinheiro
+     * Liga/desliga o widget na tela de Contas -- fica salvo, entao a
+     * escolha persiste entre visitas.
+     *
+     * @param int $usuarioId
+     * @param bool $exibir
+     * @return void
+     */
+    public function atualizarPreferenciaExibirSaldoDinheiro(int $usuarioId, bool $exibir): void
+    {
+        $sql = "UPDATE usuarios SET exibir_saldo_dinheiro = :exibir WHERE id = :id";
+        $this->connDb->update($sql, ['exibir' => $exibir ? 1 : 0, 'id' => $usuarioId]);
     }
 }

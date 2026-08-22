@@ -105,4 +105,60 @@ class ContaModel extends BaseModel
         $conta = $this->buscarPorId($contaId);
         return count($conta) > 0 && (int) $conta['usuario_id'] === $usuarioId;
     }
+
+    // Campos que o dono pode editar depois de criar a conta. 'usuario_id' e
+    // 'pluggy_account_id' ficam de fora de proposito -- trocar o dono ou o
+    // vinculo com Open Finance nao e uma edicao de perfil da conta, e outra
+    // operacao (e nem existe fluxo pra isso hoje).
+    private const CAMPOS_EDITAVEIS = ['nome', 'tipo', 'saldo_inicial', 'instituicao'];
+
+    /**
+     * atualizar
+     * Edita os dados cadastrais da conta. 'saldo_inicial' pode ser mudado
+     * aqui sem violar a RN08 -- RN08 fala do saldo ATUAL (sempre calculado,
+     * nunca gravado), nao do saldo inicial, que e um ancora legitima e
+     * sempre foi um campo normal da conta.
+     *
+     * @param int $id
+     * @param array $dados
+     * @return bool
+     */
+    public function atualizar(int $id, array $dados): bool
+    {
+        $dadosPermitidos = array_intersect_key($dados, array_flip(self::CAMPOS_EDITAVEIS));
+
+        if (empty($dadosPermitidos)) {
+            return false;
+        }
+
+        $sets = [];
+        $params = ['id' => $id];
+
+        foreach ($dadosPermitidos as $campo => $valor) {
+            $sets[] = "{$campo} = :{$campo}";
+            $params[$campo] = $valor;
+        }
+
+        $sql = "UPDATE contas SET " . implode(', ', $sets) . " WHERE id = :id";
+        $this->connDb->update($sql, $params);
+
+        return true;
+    }
+
+    /**
+     * deletar
+     * Exclusao definitiva (nao e soft-delete, ao contrario de transacoes e
+     * planos de compra) -- a FK de 'transacoes' pra 'contas' e ON DELETE
+     * CASCADE, entao apagar a conta apaga TODAS as transacoes dela junto,
+     * de vez. O Controller exige confirmacao explicita antes de chamar
+     * isso, e o texto do aviso deixa essa consequencia clara.
+     *
+     * @param int $id
+     * @return bool
+     */
+    public function deletar(int $id): bool
+    {
+        $sql = "DELETE FROM contas WHERE id = :id";
+        return $this->connDb->delete($sql, ['id' => $id]) > 0;
+    }
 }

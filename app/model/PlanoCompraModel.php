@@ -300,7 +300,7 @@ class PlanoCompraModel extends BaseModel
 
     /**
      * atualizarProgresso
-     * Roda a cada parcela adicionada/removida. Compara o gu    o com a
+     * Roda a cada parcela adicionada/removida. Compara o guardado com a
      * meta e muda o status sozinho: planejamento -> em_andamento (primeira
      * parcela), em_andamento -> concluido (bateu a meta). Ignora planos
      * cancelados/excluidos, pra nao reviver algo que o usuario descartou.

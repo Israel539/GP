@@ -518,4 +518,65 @@ class TransacaoModel extends BaseModel
 
         return $this->connDb->delete($sql, []);
     }
+
+    /**
+     * listarGrupoParcela
+     * Todas as parcelas de uma mesma compra parcelada (mesmo
+     * grupo_parcela_id), independente do mes -- usado pelo modal de
+     * "excluir parcelas" pra mostrar a compra inteira, mesmo que algumas
+     * parcelas estejam em meses diferentes do que esta sendo exibido no
+     * extrato agora (o extrato so mostra o mes selecionado, mas a compra
+     * inteira pode se espalhar por varios meses). Sempre filtra tambem por
+     * conta_id, pra ninguem conseguir ver parcelas de outra pessoa so
+     * adivinhando o grupo_parcela_id.
+     *
+     * @param string $grupoParcelaId
+     * @param int $contaId
+     * @return array
+     */
+    public function listarGrupoParcela(string $grupoParcelaId, int $contaId): array
+    {
+        $sql = "SELECT * FROM transacoes
+                WHERE grupo_parcela_id = :grupo_parcela_id
+                  AND conta_id = :conta_id
+                  AND excluido_em IS NULL
+                ORDER BY parcela_atual ASC";
+
+        return $this->connDb->select($sql, [
+            'grupo_parcela_id' => $grupoParcelaId,
+            'conta_id'         => $contaId,
+        ]);
+    }
+
+    /**
+     * excluirEmMassa
+     * Move pra lixeira (soft-delete) uma lista de transacoes, reaproveitando
+     * a mesma logica/regras de excluir() uma por uma (RN07, desconto de
+     * fatura em aberto se for credito, etc.) -- usado pelo "Excluir
+     * selecionadas" do modal de parcelas (RN pedida: apagar a compra
+     * inteira em grupo OU escolher so algumas parcelas).
+     *
+     * @param array $ids
+     * @param int $contaId Trava de seguranca: so mexe em transacoes dessa conta
+     * @return int Quantidade realmente excluida
+     */
+    public function excluirEmMassa(array $ids, int $contaId): int
+    {
+        $total = 0;
+
+        foreach ($ids as $id) {
+            $id = (int) $id;
+            $transacao = $this->buscarPorId($id);
+
+            if (count($transacao) === 0 || (int) $transacao['conta_id'] !== $contaId) {
+                continue; // ignora silenciosamente id inexistente ou de outra conta
+            }
+
+            if ($this->excluir($id)) {
+                $total++;
+            }
+        }
+
+        return $total;
+    }
 }
