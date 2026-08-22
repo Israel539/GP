@@ -93,6 +93,29 @@ class ContaModel extends BaseModel
     }
 
     /**
+     * ajustarSaldoAtual
+     * Ajusta o saldo inicial para que o saldo calculado da conta passe a ser
+     * o valor informado, sem alterar as transacoes existentes.
+     *
+     * @param int $contaId
+     * @param float $saldoDesejado
+     * @return void
+     */
+    public function ajustarSaldoAtual(int $contaId, float $saldoDesejado): void
+    {
+        $conta = $this->buscarPorId($contaId);
+        $saldoAtual = $this->saldoAtual($contaId);
+        $saldoInicial = (float) ($conta['saldo_inicial'] ?? 0);
+        $novoSaldoInicial = $saldoInicial + ($saldoDesejado - $saldoAtual);
+
+        $sql = "UPDATE contas SET saldo_inicial = :saldo_inicial WHERE id = :id";
+        $this->connDb->update($sql, [
+            'saldo_inicial' => $novoSaldoInicial,
+            'id'            => $contaId,
+        ]);
+    }
+
+    /**
      * usuarioEhDono
      * Checagem de autorizacao antes de qualquer operacao na conta.
      *

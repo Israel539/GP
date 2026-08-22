@@ -62,6 +62,11 @@ class Transacao extends BaseController
         $tags        = $this->tagModel->listarPorUsuario((int) $conta['usuario_id']);
         $lixeira     = $this->model->listarExcluidasRecentes($contaId);
 
+        $totaisFiltro = ['receitas' => 0.0, 'despesas' => 0.0];
+        foreach ($transacoes as $t) {
+            $totaisFiltro[$t['tipo'] === 'receita' ? 'receitas' : 'despesas'] += (float) $t['valor'];
+        }
+
         // Widget opcional de dinheiro fisico + total (ver migracao 012) --
         // a sessao so tem id/nome/email/nivel, entao busca o usuario
         // completo so aqui, que e onde os campos extras sao usados.
@@ -76,6 +81,7 @@ class Transacao extends BaseController
             'conta'       => $conta,
             'transacoes'  => $transacoes,
             'saldoAtual'  => $saldoAtual,
+            'totaisFiltro' => $totaisFiltro,
             'categorias'  => $categorias,
             'cartoes'     => $cartoes,
             'tags'        => $tags,

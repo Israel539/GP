@@ -72,9 +72,17 @@ include __DIR__ . '/comuns/header.php'; ?>
                     </div>
                     <div class="col-md-4 border-end">
                         <div class="small text-muted mb-1">Saldo desta conta</div>
-                        <div class="fs-6 <?= $saldoAtual < 0 ? 'text-danger' : 'text-success' ?>">
-                            R$ <?= number_format($saldoAtual, 2, ',', '.') ?>
-                        </div>
+                        <form action="/Conta/atualizarSaldoConta" method="POST"
+                            class="d-flex justify-content-center align-items-center gap-1">
+                            <?= \App\Library\Csrf::getHiddenField() ?>
+                            <input type="hidden" name="conta_id" value="<?= (int) $conta['id'] ?>">
+                            <input type="hidden" name="voltar_para" value="/Transacao/extrato/<?= (int) $conta['id'] ?>">
+                            <span class="small">R$</span>
+                            <input type="text" name="saldo_conta" class="form-control form-control-sm text-center"
+                                style="max-width: 110px;"
+                                value="<?= number_format($saldoAtual, 2, ',', '') ?>">
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Salvar</button>
+                        </form>
                     </div>
                     <div class="col-md-4">
                         <div class="small text-muted mb-1">Total (dinheiro + esta conta)</div>
@@ -253,6 +261,30 @@ include __DIR__ . '/comuns/header.php'; ?>
                         </div>
                     </div>
                 </div>
+
+                <?php if (!empty($filtros['categoria_id'])): ?>
+                    <?php
+                    $categoriaSelecionada = 'Categoria selecionada';
+                    foreach ($categorias as $categoria) {
+                        if ((int) $categoria['id'] === (int) $filtros['categoria_id']) {
+                            $categoriaSelecionada = $categoria['nome'];
+                            break;
+                        }
+                    }
+                    ?>
+                    <div class="alert alert-light border mt-2 mb-0 py-2 small">
+                        <strong><?= htmlspecialchars($categoriaSelecionada) ?></strong>:
+                        <?= count($transacoes) ?> lançamento(<?= count($transacoes) === 1 ? '' : 's' ?>),
+                        <span class="text-danger fw-semibold">
+                            total gasto: R$ <?= number_format($totaisFiltro['despesas'], 2, ',', '.') ?>
+                        </span>
+                        <?php if ($totaisFiltro['receitas'] > 0): ?>
+                            <span class="text-success ms-2">
+                                receitas: R$ <?= number_format($totaisFiltro['receitas'], 2, ',', '.') ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
 
                 <!-- Exportar reusa os mesmos campos de filtro acima (formaction
                      troca so o destino do submit, sem precisar de JS nem de

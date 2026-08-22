@@ -176,6 +176,33 @@ class Conta extends BaseController
     }
 
     /**
+     * atualizarSaldoConta
+     * URL: /Conta/atualizarSaldoConta (POST)
+     * Ajusta o saldo inicial para refletir o saldo atual informado pelo dono.
+     * As transacoes existentes continuam preservadas e o saldo segue sendo
+     * calculado pela vw_saldo_contas (RN08).
+     *
+     * @return void
+     */
+    public function atualizarSaldoConta()
+    {
+        $usuario = $this->usuarioLogado();
+        $post    = $this->request->getPost();
+        $contaId = (int) ($post['conta_id'] ?? 0);
+
+        if (!$this->model->usuarioEhDono($contaId, (int) $usuario['id'])) {
+            Session::set('msgError', 'Conta nao encontrada.');
+            return header('Location: /Conta');
+        }
+
+        $valor = (float) str_replace(',', '.', $post['saldo_conta'] ?? '0');
+        $this->model->ajustarSaldoAtual($contaId, $valor);
+
+        Session::set('msgSucesso', 'Saldo da conta atualizado.');
+        return header('Location: ' . $this->destinoAposSalvarSaldo($post));
+    }
+
+    /**
      * alternarExibirSaldoDinheiro
      * URL: /Conta/alternarExibirSaldoDinheiro (POST)
      * Liga/desliga o widget de dinheiro fisico + total na tela de Contas.
