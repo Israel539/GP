@@ -66,7 +66,9 @@ class ContatoModel extends BaseModel
                     respondido_por = :respondido_por,
                     respondido_em = CURRENT_TIMESTAMP,
                     status = 'respondido'
-                WHERE id = :id";
+                WHERE id = :id
+                  AND resposta IS NULL
+                  AND status = 'pendente'";
 
         return $this->connDb->update($sql, [
             'resposta'       => $resposta,

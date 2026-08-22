@@ -8,6 +8,7 @@
  * @var array $tags
  * @var array $filtros
  * @var array $periodo
+ * @var array $totaisFiltro
  * @var array $lixeira
  * @var array $usuario
  */
@@ -29,10 +30,11 @@ include __DIR__ . '/comuns/header.php'; ?>
             <span class="text-muted"><?= htmlspecialchars(ucfirst($conta['tipo'])) ?></span>
         </div>
         <div class="col-md-6 text-end">
-            <div class="fs-3 <?= $saldoAtual < 0 ? 'text-danger' : 'text-success' ?>">
-                R$ <?= number_format($saldoAtual, 2, ',', '.') ?>
+            <?php $saldoTotal = $saldoAtual + (float) ($usuario['saldo_dinheiro'] ?? 0); ?>
+            <div class="fs-3 <?= $saldoTotal < 0 ? 'text-danger' : 'text-success' ?>">
+                R$ <?= number_format($saldoTotal, 2, ',', '.') ?>
             </div>
-            <span class="small text-muted">Saldo calculado em tempo real (RN08)</span>
+            <span class="small text-muted">Saldo total (conta + dinheiro físico)</span>
         </div>
     </div>
 

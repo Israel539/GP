@@ -3,10 +3,11 @@
 namespace App\Controller;
 
 use App\Library\Session;
+use App\Model\ContaModel;
 
 class Conta extends BaseController
 {
-    protected $model;
+    protected ContaModel $model;
 
     public function __construct()
     {

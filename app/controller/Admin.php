@@ -477,7 +477,7 @@ class Admin extends BaseController
         $okResponder = $contatoModel->responder($contatoId, $adminId, $resposta);
 
         if (!$okResponder) {
-            Session::set('msgError', 'Nao foi possivel salvar a resposta. Tente novamente.');
+            Session::set('msgError', 'Este contato ja foi respondido e o e-mail nao foi reenviado.');
             return header('Location: /Admin/verContato/' . $contatoId);
         }
 
