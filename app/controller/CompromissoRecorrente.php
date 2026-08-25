@@ -160,7 +160,10 @@ class CompromissoRecorrente extends BaseController
             Session::set('msgSucesso', "{$okCount} compromisso(s) gerado(s) na agenda.");
         } else {
             $primeiroPulado = reset($pulados);
-            Session::set('msgError', "{$okCount} gerado(s), mas \"{$primeiroPulado['titulo']}\" em {$primeiroPulado['data']} foi pulado: {$primeiroPulado['mensagem']}");
+            // htmlspecialchars no titulo -- e texto livre digitado pelo
+            // usuario ao criar a recorrencia; 'mensagem' vem sempre de
+            // CompromissoModel::criar() com texto fixo do sistema.
+            Session::set('msgError', "{$okCount} gerado(s), mas \"" . htmlspecialchars($primeiroPulado['titulo']) . "\" em {$primeiroPulado['data']} foi pulado: {$primeiroPulado['mensagem']}");
         }
 
         return header('Location: /CompromissoRecorrente');

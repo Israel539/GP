@@ -493,7 +493,11 @@ class Admin extends BaseController
 
             $envio = Mailer::enviar($contato['email'], $contato['nome'], $assuntoEmail, $corpo);
             if (!$envio['ok']) {
-                Session::set('msgError', 'Resposta salva, mas falha ao enviar e-mail: ' . $envio['erro']);
+                // htmlspecialchars por seguranca: em alguns casos essa mensagem
+                // de erro do PHPMailer pode ecoar de volta o endereco de e-mail
+                // que falhou (contato['email']) -- e esse campo vem do formulario
+                // PUBLICO de contato, sem login, entao nao e um dado confiavel.
+                Session::set('msgError', 'Resposta salva, mas falha ao enviar e-mail: ' . htmlspecialchars($envio['erro']));
             }
         }
 

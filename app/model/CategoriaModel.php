@@ -82,4 +82,32 @@ class CategoriaModel extends BaseModel
         $sql = "SELECT * FROM categorias WHERE id = :id LIMIT 1";
         return $this->connDb->select($sql, ['id' => $id], 'one');
     }
+
+    /**
+     * usuarioPodeUsar
+     * Confere se $usuarioId pode usar essa categoria -- ou porque ela e
+     * dele, ou porque e uma categoria padrao do sistema (usuario_id NULL,
+     * disponivel pra todo mundo). Se ela pertence a OUTRO usuario, retorna
+     * false.
+     * RN de seguranca: sem essa checagem, era possivel gravar um orcamento
+     * (ou qualquer outra coisa que referencie categoria_id) apontando pra
+     * categoria de outra pessoa -- e como o nome/cor da categoria aparece
+     * em telas do proprio usuario "dono" do orcamento (via JOIN), isso
+     * vazava nome de categoria de outro usuario (ver OrcamentoModel::
+     * listarComGasto()).
+     *
+     * @param int $categoriaId
+     * @param int $usuarioId
+     * @return bool
+     */
+    public function usuarioPodeUsar(int $categoriaId, int $usuarioId): bool
+    {
+        $categoria = $this->buscarPorId($categoriaId);
+
+        if (count($categoria) === 0) {
+            return false;
+        }
+
+        return $categoria['usuario_id'] === null || (int) $categoria['usuario_id'] === $usuarioId;
+    }
 }

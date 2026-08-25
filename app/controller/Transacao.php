@@ -131,8 +131,8 @@ class Transacao extends BaseController
         foreach ($transacoes as $t) {
             fputcsv($saida, [
                 $t['data_fato_gerador'],
-                $t['descricao'],
-                $t['categoria_nome'] ?? '(sem categoria)',
+                $this->sanitizarCelulaCsv($t['descricao']),
+                $this->sanitizarCelulaCsv($t['categoria_nome'] ?? '(sem categoria)'),
                 ucfirst($t['tipo']),
                 ucfirst($t['modalidade']),
                 number_format((float) $t['valor'], 2, ',', ''),
@@ -311,6 +311,30 @@ class Transacao extends BaseController
     }
 
     /**
+     * sanitizarCelulaCsv
+     * Protege contra "CSV Injection" (Formula Injection): se um valor
+     * comecar com =, +, -, @ (ou tab/CR), programas como Excel podem
+     * interpretar a celula como uma FORMULA em vez de texto quando o
+     * arquivo e aberto -- isso pode rodar comandos no computador de quem
+     * abrir. O texto vem de dados que nao sao 100% controlados pelo dono
+     * da conta (ex: descricao de uma transacao importada via Open
+     * Finance/Pix pode ter sido escrita por quem pagou, nao por quem
+     * esta exportando). Prefixar com apostrofo faz o Excel/LibreOffice
+     * tratar sempre como texto puro, nunca como formula.
+     *
+     * @param string $valor
+     * @return string
+     */
+    protected function sanitizarCelulaCsv(string $valor): string
+    {
+        if ($valor !== '' && in_array($valor[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $valor;
+        }
+
+        return $valor;
+    }
+
+    /**
      * nomeArquivoExportacao
      * Monta um nome de arquivo seguro (sem acento/espaco/caractere especial)
      * pro download, ex: extrato_conta-corrente_20260807_1432.csv
@@ -358,9 +382,20 @@ class Transacao extends BaseController
             return header("Location: /Transacao/extrato/{$contaId}");
         }
 
+        $categoriaId = !empty($post['categoria_id']) ? (int) $post['categoria_id'] : null;
+
+        // RN de seguranca: categoria (se informada) precisa ser do usuario
+        // ou padrao do sistema -- sem isso, dava pra forjar categoria_id de
+        // outro usuario no formulario e o nome dela aparecia no extrato via
+        // JOIN (TransacaoModel usa LEFT JOIN categorias sem checar dono).
+        if ($categoriaId !== null && !$this->categoriaModel->usuarioPodeUsar($categoriaId, (int) $usuario['id'])) {
+            Session::set('msgError', 'Categoria invalida.');
+            return header("Location: /Transacao/extrato/{$contaId}");
+        }
+
         $dadosTransacao = [
             'conta_id'          => $contaId,
-            'categoria_id'      => !empty($post['categoria_id']) ? (int) $post['categoria_id'] : null,
+            'categoria_id'      => $categoriaId,
             'cartao_id'         => !empty($post['cartao_id']) ? (int) $post['cartao_id'] : null,
             'descricao'         => $post['descricao'],
             'valor'             => abs((float) str_replace(',', '.', $post['valor'])),
@@ -432,8 +467,17 @@ class Transacao extends BaseController
 
         $post = $this->request->getPost();
 
+        $categoriaId = !empty($post['categoria_id']) ? (int) $post['categoria_id'] : null;
+
+        // Mesma checagem de dono da categoria usada em lancar() -- ver o
+        // comentario la pra entender o motivo.
+        if ($categoriaId !== null && !$this->categoriaModel->usuarioPodeUsar($categoriaId, (int) $usuario['id'])) {
+            Session::set('msgError', 'Categoria invalida.');
+            return header("Location: /Transacao/extrato/{$contaId}");
+        }
+
         $this->model->atualizar($transacaoId, [
-            'categoria_id' => !empty($post['categoria_id']) ? (int) $post['categoria_id'] : null,
+            'categoria_id' => $categoriaId,
         ]);
 
         // Tags sempre editaveis, mesmo em transacao importada (RN07 libera
@@ -533,13 +577,22 @@ class Transacao extends BaseController
 
         $post = $this->request->getPost();
 
+        $categoriaId = !empty($post['categoria_id']) ? (int) $post['categoria_id'] : null;
+
+        // Mesma checagem de dono da categoria usada em lancar() -- ver o
+        // comentario la pra entender o motivo.
+        if ($categoriaId !== null && !$this->categoriaModel->usuarioPodeUsar($categoriaId, (int) $usuario['id'])) {
+            Session::set('msgError', 'Categoria invalida.');
+            return header("Location: /Transacao/editar/{$transacaoId}");
+        }
+
         $dados = [
             'descricao'         => $post['descricao'] ?? '',
             'valor'             => abs((float) str_replace(',', '.', $post['valor'] ?? '0')),
             'tipo'              => $post['tipo'] ?? $transacao['tipo'],
             'data_fato_gerador' => $post['data_fato_gerador'] ?? $transacao['data_fato_gerador'],
             'data_competencia'  => $post['data_competencia'] ?? $post['data_fato_gerador'] ?? $transacao['data_competencia'],
-            'categoria_id'      => !empty($post['categoria_id']) ? (int) $post['categoria_id'] : null,
+            'categoria_id'      => $categoriaId,
         ];
 
         if ($transacao['modalidade'] === 'credito') {

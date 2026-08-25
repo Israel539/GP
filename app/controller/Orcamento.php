@@ -50,6 +50,18 @@ class Orcamento extends BaseController
         $dados = $this->request->getPost();
         $usuario = $this->usuarioLogado();
 
+        $categoriaId = (int) ($dados['categoria_id'] ?? 0);
+
+        // RN de seguranca: confere que essa categoria e do usuario (ou
+        // padrao do sistema) antes de vincular o orcamento a ela -- sem
+        // isso, dava pra forjar o categoria_id no formulario e vincular
+        // (e depois visualizar) uma categoria de outro usuario. Ver
+        // CategoriaModel::usuarioPodeUsar() para o detalhe.
+        if (!$this->categoriaModel->usuarioPodeUsar($categoriaId, (int) $usuario['id'])) {
+            Session::set('msgError', 'Categoria invalida.');
+            return header('Location: /Orcamento/form');
+        }
+
         $dados['valor_limite'] = str_replace(',', '.', $dados['valor_limite'] ?? '0');
 
         if (!$this->model->validate($dados)) {
@@ -57,7 +69,7 @@ class Orcamento extends BaseController
             return header('Location: /Orcamento/form');
         }
 
-        $this->model->definir((int) $usuario['id'], (int) $dados['categoria_id'], (float) $dados['valor_limite']);
+        $this->model->definir((int) $usuario['id'], $categoriaId, (float) $dados['valor_limite']);
 
         Session::set('msgSucesso', 'Orcamento salvo com sucesso.');
         return header('Location: /Orcamento');

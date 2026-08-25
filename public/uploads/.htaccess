@@ -1,0 +1,14 @@
+# Essa pasta so guarda imagens enviadas pelos usuarios (fotos de perfil,
+# imagens de plano de compra). Mesmo o codigo ja validando que so entra
+# imagem de verdade (getimagesize confere o conteudo, nao so a extensao),
+# garante que, mesmo se algum arquivo
+# diferente parar aqui por algum bug futuro, o servidor NUNCA executa ele
+# como PHP -- so serve como arquivo estatico (imagem/download).
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|phar|pl|py|cgi|asp|aspx|sh)$">
+    Require all denied
+</FilesMatch>

@@ -4,11 +4,21 @@
 // navegador fecha de verdade) -- independente do que o php.ini do XAMPP
 // tiver configurado em session.cookie_lifetime. httponly evita que
 // JavaScript malicioso (XSS) leia esse cookie.
+//
+// 'secure' => so manda o cookie em conexao HTTPS. Detectamos automatico:
+// no WAMP local (HTTP puro) fica desligado sem precisar mexer em nada;
+// quando for pra producao com HTTPS (ex: Hostinger com certificado),
+// liga sozinho. Sem isso, o cookie de sessao podia vazar numa rede
+// Wi-Fi publica/insegura, por exemplo.
+$conexaoSegura = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+
 session_set_cookie_params([
     'lifetime' => 0,
     'path'     => '/',
     'httponly' => true,
     'samesite' => 'Lax',
+    'secure'   => $conexaoSegura,
 ]);
 
 session_start();

@@ -244,12 +244,16 @@ class Projeto extends BaseController
         );
 
         if ($resultadoEnvio['ok']) {
-            Session::set('msgSucesso', "Convite enviado por e-mail para {$email}.");
+            Session::set('msgSucesso', "Convite enviado por e-mail para " . htmlspecialchars($email) . ".");
         } else {
             // O convite (token) ja foi gravado no banco -- isso funciona
             // independente do e-mail. Mas o e-mail em si falhou, e o usuario
             // precisa saber disso (em vez de acreditar que foi enviado).
-            Session::set('msgError', "O convite foi registrado, mas o e-mail para {$email} NAO pode ser enviado agora. Veja o log do PHP para o motivo, ou compartilhe o link manualmente: <a href=\"{$linkConvite}\">{$linkConvite}</a>");
+            // htmlspecialchars no $email -- filter_var(FILTER_VALIDATE_EMAIL)
+            // aceita "quoted strings" no formato de e-mail (RFC 5322), entao
+            // NAO garante que o valor esteja livre de <script>/aspas. $linkConvite
+            // e gerado pelo sistema (token aleatorio), esse pedaco continua seguro.
+            Session::set('msgError', "O convite foi registrado, mas o e-mail para " . htmlspecialchars($email) . " NAO pode ser enviado agora. Veja o log do PHP para o motivo, ou compartilhe o link manualmente: <a href=\"{$linkConvite}\">{$linkConvite}</a>");
         }
 
         return header("Location: /Projeto/kanban/{$projetoId}");

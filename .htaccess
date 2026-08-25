@@ -1,4 +1,24 @@
-# Ativa o motor de reescrita
+# ============================================================
+# Bloqueio de acesso direto a arquivos e pastas sensiveis
+# ============================================================
+
+# Bloqueia qualquer arquivo que comece com ponto (.env, .git*, .gitignore, .vscode)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Bloqueia a pasta .git inteira (evita reconstruir o repositorio inteiro)
+RedirectMatch 404 ^/\.git(/.*)?$
+
+# Bloqueia pastas que nao deveriam ser acessadas pelo navegador
+RedirectMatch 404 ^/(database|vendor|storage|tests|scripts|app)(/.*)?$
+
+# Bloqueia extensoes sensiveis em qualquer lugar do projeto.
+<FilesMatch "\.(sql|env|log|pem|key|md|lock)$">
+    Require all denied
+</FilesMatch>
+
+# Roteamento normal da aplicacao (ja existia)
 <IfModule mod_rewrite.c>
     RewriteEngine On
 

@@ -81,7 +81,10 @@
                                 <div>
                                     <a href="/Admin/verTermo/<?= (int) $termo['id'] ?>" class="btn btn-sm btn-outline-secondary me-2">Visualizar</a>
                                     <?php if (!$termo['ativo']): ?>
-                                        <a href="/Admin/ativarTermo/<?= (int) $termo['id'] ?>" class="btn btn-sm btn-outline-primary">Ativar</a>
+                                        <form action="/Admin/ativarTermo/<?= (int) $termo['id'] ?>" method="POST" class="d-inline">
+                                            <?= \App\Library\Csrf::getHiddenField() ?>
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">Ativar</button>
+                                        </form>
                                     <?php endif; ?>
                                 </div>
                             </div>

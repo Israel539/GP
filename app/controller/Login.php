@@ -78,13 +78,21 @@ class Login extends BaseController
         // Login certo: zera o contador de tentativas erradas.
         $this->model->limparTentativas((int) $aUser['id']);
 
+        // Troca o ID da sessão agora que o usuario vai virar "autenticado"
+        // -- previne session fixation (ver Session::regenerate() pra
+        // entender o motivo). Precisa ser ANTES de gravar userLogado.
+        Session::regenerate();
+
         //  Criar flag's de usuário logado no sistema
+        // OBS: nao guardamos a senha (nem o hash) aqui -- ninguem le esse
+        // campo de dentro da sessao, entao era exposicao desnecessaria.
+        // Se um dia precisar confirmar a senha atual (ex: trocar senha),
+        // busca de novo no banco na hora, nao usa o que ta na sessao.
         $_SESSION["userLogado"] = [
                                         "id"    => $aUser['id'],
                                         "nome"  => $aUser['nome'],
                                         "email" => $aUser['email'],
-                                        "nivel" => $aUser['nivel'],
-                                        "senha" => $aUser['senha']
+                                        "nivel" => $aUser['nivel']
                                     ];
 
         $termoModel = $this->model('Termo');
@@ -107,6 +115,12 @@ class Login extends BaseController
     public function logout()
     {
         unset($_SESSION['userLogado']);
+
+        // Troca o ID da sessão tambem no logout -- garante que, se alguem
+        // pegou o ID antigo (compartilhando computador, por exemplo), ele
+        // nao serve mais pra nada depois que a sessao "desloga".
+        Session::regenerate();
+
         return header("Location: /Home");
     }
 
@@ -216,35 +230,5 @@ class Login extends BaseController
 
         Session::set('msgSucesso', 'Senha redefinida com sucesso! Faca login com a nova senha.');
         return header('Location: /Login');
-    }
-
-    /**
-     * criaSuperUser
-     *
-     * @return void
-     */
-    public function criaSuperUser()
-    {
-        $dados = [
-            "nome"              => "Israel Ferrera",
-            "email"             => "if739871@gmail.com",
-            "senha"             => "if739871",
-            "nivel"             => 1,
-            "statusRegistro"    => 1
-        ];
-
-        $aSuperUser = $this->model->getUserEmail($dados['email']);
-
-        if (count($aSuperUser) > 0) {
-            $_SESSION["msgError"] = "Login já existe.";
-            return header("location: /Login");
-        } else {
-            if ($this->model->insert($dados)) {
-                $_SESSION["msgSucesso"] = "Login criado com sucesso.";
-                return header("location: /Login");
-            } else {
-                return header("location: /Login");
-            }
-        }
     }
 }

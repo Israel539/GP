@@ -60,4 +60,16 @@ class Session
 
         return $valor;
     }
+
+    /**
+     * regenerate
+     * Troca o ID da sessão mantendo os dados que já estavam nela.
+     * RN de segurança: previne "session fixation" 
+     *
+     * @return void
+     */
+    public static function regenerate()
+    {
+        session_regenerate_id(true); // true = apaga o arquivo de sessão antigo no servidor
+    }
 }

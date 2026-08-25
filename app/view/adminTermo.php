@@ -18,7 +18,10 @@ include __DIR__ . '/comuns/header.php'; ?>
             <div class="mt-4">
                 <a href="/Admin/termos" class="btn btn-secondary">Voltar</a>
                 <?php if (!$termo['ativo']): ?>
-                    <a href="/Admin/ativarTermo/<?= (int) $termo['id'] ?>" class="btn btn-primary">Ativar</a>
+                    <form action="/Admin/ativarTermo/<?= (int) $termo['id'] ?>" method="POST" class="d-inline">
+                        <?= \App\Library\Csrf::getHiddenField() ?>
+                        <button type="submit" class="btn btn-primary">Ativar</button>
+                    </form>
                 <?php endif; ?>
             </div>
         </div>

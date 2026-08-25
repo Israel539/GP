@@ -11,6 +11,20 @@ class TransacaoModel extends BaseModel
         'data_competencia', 'id_externo', 'instituicao_externa', 'conta_id',
     ];
 
+    // Campos que atualizar() aceita alterar, no total (antes de aplicar
+    // ainda o filtro de CAMPOS_IMUTAVEIS_API acima quando a origem for API).
+    // RN de seguranca (defesa em profundidade): atualizar() monta o SQL
+    // dinamicamente a partir das CHAVES desse array -- hoje nenhum
+    // Controller passa $_POST cru pra ca (sempre um array explicito), mas
+    // sem essa whitelist, um dev futuro que passasse $_POST direto abriria
+    // brecha pra sobrescrever QUALQUER coluna da tabela (ex: conta_id,
+    // usuario dono, id_externo) so adicionando o campo no formulario/POST.
+    // Mesmo padrao ja usado em ContaModel, PlanoCompraModel, RecorrenciaModel etc.
+    private const CAMPOS_EDITAVEIS = [
+        'descricao', 'valor', 'tipo', 'modalidade',
+        'data_fato_gerador', 'data_competencia', 'categoria_id',
+    ];
+
     protected $validationRules = [
         'descricao' => ['rules' => 'required|min:2|max:200', 'label' => 'Descricao'],
         'valor'     => ['rules' => 'required|numeric',        'label' => 'Valor'],
@@ -364,6 +378,14 @@ class TransacaoModel extends BaseModel
 
         if (empty($dados)) {
             return true; // nada permitido restou para atualizar -- nao e erro, e RN07 fazendo efeito
+        }
+
+        // Ultima linha de defesa: so deixa passar campos da whitelist,
+        // mesmo que algo tenha chegado ate aqui fora dela.
+        $dados = array_intersect_key($dados, array_flip(self::CAMPOS_EDITAVEIS));
+
+        if (empty($dados)) {
+            return true;
         }
 
         // Monta o SET dinamicamente so com os campos que sobraram (ex: so 'categoria_id',

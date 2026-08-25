@@ -202,7 +202,12 @@ class Recorrencia extends BaseController
             Session::set('msgSucesso', "{$okCount} transacao(oes) lancada(s) a partir das recorrencias.");
         } else {
             $primeiraFalha = reset($falhas);
-            Session::set('msgError', "{$okCount} lancada(s), mas \"{$primeiraFalha['descricao']}\" falhou: {$primeiraFalha['mensagem']}");
+            // htmlspecialchars na descricao -- ela e texto livre digitado pelo
+            // usuario ao criar a recorrencia, e mensagens() (helper) imprime
+            // essa mensagem sem escapar (de proposito, outras mensagens usam
+            // HTML). 'mensagem' aqui vem sempre de excecoes com texto fixo do
+            // sistema (ver TransacaoModel), entao nao precisa escapar.
+            Session::set('msgError', "{$okCount} lancada(s), mas \"" . htmlspecialchars($primeiraFalha['descricao']) . "\" falhou: {$primeiraFalha['mensagem']}");
         }
 
         return header('Location: /Recorrencia');

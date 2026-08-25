@@ -20,6 +20,12 @@ class UsuarioModel extends BaseModel
     // Reset de senha: o link enviado por e-mail vale por esse tempo.
     const RESET_SENHA_VALIDADE_MINUTOS = 60;
 
+    // Rate limiting do "esqueci minha senha": nao gera (nem manda e-mail
+    // de) um novo token pro mesmo usuario se o ultimo pedido foi a menos
+    // desse tempo -- evita que alguem fique atualizando a tela e vire
+    // uma maquina de spam de e-mail em cima da vitima.
+    const RESET_SENHA_COOLDOWN_SEGUNDOS = 120;
+
     protected $validationRules = [
         'nome'  => ['rules' => 'required|min:3|max:120', 'label' => 'Nome'],
         'email' => ['rules' => 'required|email|max:150', 'label' => 'E-mail'],
@@ -260,8 +266,14 @@ class UsuarioModel extends BaseModel
      * decide nao revelar essa diferenca na resposta (evita enumeracao de
      * e-mails cadastrados).
      *
+     * Tambem devolve null (sem gerar nada nem mandar e-mail) se o mesmo
+     * usuario ja pediu um token a menos de RESET_SENHA_COOLDOWN_SEGUNDOS --
+     * o Controller mostra a mesma mensagem generica dos dois casos
+     * (e-mail invalido OU cooldown), entao pra quem esta de fora nao da
+     * pra diferenciar um do outro.
+     *
      * @param string $email
-     * @return string|null Token gerado, ou null se o e-mail nao existir
+     * @return string|null Token gerado, ou null se o e-mail nao existir ou estiver em cooldown
      */
     public function gerarTokenReset(string $email): ?string
     {
@@ -269,6 +281,21 @@ class UsuarioModel extends BaseModel
 
         if (count($usuario) === 0) {
             return null;
+        }
+
+        $ultimoPedido = $this->connDb->select(
+            "SELECT reset_token_expira_em FROM usuarios WHERE id = :id LIMIT 1",
+            ['id' => $usuario['id']],
+            'one'
+        );
+
+        if (!empty($ultimoPedido['reset_token_expira_em'])) {
+            // O token foi gerado (expira_em - validade) minutos atras.
+            $geradoEm = strtotime($ultimoPedido['reset_token_expira_em']) - (self::RESET_SENHA_VALIDADE_MINUTOS * 60);
+
+            if ((time() - $geradoEm) < self::RESET_SENHA_COOLDOWN_SEGUNDOS) {
+                return null;
+            }
         }
 
         $token = bin2hex(random_bytes(32));

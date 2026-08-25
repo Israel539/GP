@@ -11,6 +11,57 @@ class BaseController
 {
     public Request $request;
 
+    /**
+     * ACOES_SOMENTE_POST
+     * Mapa central: Controller (nome curto da classe) => metodos que MUDAM
+     * dado e por isso so podem ser executados via POST.
+     *
+     * Por que isso existe: o roteador (Routes.php) despacha pra
+     * Controller/metodo olhando so o CAMINHO da URL -- ele nunca confere se
+     * a requisicao veio como GET ou POST. E o verificarCsrf() so valida
+     * token quando o metodo HTTP e POST/PUT/PATCH/DELETE; pra GET, ele
+     * simplesmente nao faz nada. Ou seja: sem essa lista, qualquer acao
+     * (excluir, bloquear, atualizar...) podia ser disparada tambem mandando
+     * a mesma URL como GET, pulando o CSRF inteiro. Bastava alguem logado
+     * clicar num link malicioso (ex: recebido por e-mail/mensagem) apontando
+     * pra ela -- CSRF classico, mesmo com todos os formularios usando POST
+     * certinho.
+     *
+     * Esse mapa fecha essa porta: mesmo que a URL seja acessada via GET,
+     * verificarMetodoEscrita() barra a execucao se o metodo estiver aqui.
+     *
+     * De proposito FICAM DE FORA (nao viram GET-bloqueado):
+     * - Projeto::aceitar e qualquer fluxo de convite/reset por e-mail --
+     *   esses SAO acionados por um clique vindo de fora do sistema (o link
+     *   no e-mail), entao nao da pra exigir um token CSRF de uma pagina que
+     *   a pessoa nunca carregou. A protecao deles e outra: um token proprio,
+     *   de uso unico e com validade, na propria URL.
+     * - Login::logout -- o pior que um link malicioso conseguiria e deslogar
+     *   a pessoa. Sem risco real, entao deixamos o link simples no menu.
+     */
+    protected const ACOES_SOMENTE_POST = [
+        'Admin'                 => ['bloquear', 'ativar', 'promover', 'rebaixar', 'suporteAcessar', 'restaurarContatos', 'salvarTermo', 'ativarTermo', 'excluirContato', 'responder'],
+        'Agenda'                => ['salvar', 'concluir', 'cancelar', 'excluir', 'excluirEmMassa', 'configurarLimpezaAutomatica'],
+        'Cadastro'              => ['salvar'],
+        'Cartao'                => ['salvar', 'atualizar', 'pagarFatura', 'deletar'],
+        'Categoria'             => ['salvar', 'excluir'],
+        'CompromissoRecorrente' => ['salvar', 'atualizar', 'excluir', 'gerarAgora'],
+        'Conta'                 => ['salvar', 'atualizar', 'excluir', 'atualizarSaldoDinheiro', 'atualizarSaldoConta', 'alternarExibirSaldoDinheiro'],
+        'Contato'               => ['enviar', 'limparHistorico', 'restaurarHistorico'],
+        'Login'                 => ['login', 'enviarLinkReset', 'salvarNovaSenha'],
+        'Orcamento'             => ['salvar', 'excluir'],
+        'PlanoCompra'           => ['salvar', 'atualizar', 'excluir', 'restaurar', 'restaurarTodos', 'adicionarParcela', 'excluirParcela', 'concluir', 'cancelar'],
+        'Projeto'               => ['salvar', 'removerColaborador', 'convidar', 'concluir', 'excluir', 'mensagem', 'sair'],
+        'ProjetoRelatorio'      => ['salvar'],
+        'Recorrencia'           => ['salvar', 'atualizar', 'alternar', 'excluir', 'gerarAgora'],
+        'SolicitacaoSuporte'    => ['enviar', 'cancelar'],
+        'SuporteChat'           => ['enviar', 'encerrar'],
+        'Tarefa'                => ['criar', 'mover', 'atualizar', 'excluir'],
+        'Termo'                 => ['aceitar'],
+        'Transacao'             => ['lancar', 'atualizarCategoria', 'atualizar', 'excluir', 'excluirEmMassa', 'restaurar'],
+        'Usuario'               => ['atualizar', 'alterarSenha', 'excluirConta'],
+    ];
+
     public function __construct()
     {
         $this->request = new Request();
@@ -29,8 +80,37 @@ class BaseController
         header("Expires: 0");
 
         $this->verificarCsrf();
+        $this->verificarMetodoEscrita();
         $this->verificarInatividade();
         $this->verificarAutenticacao();
+    }
+
+    /**
+     * verificarMetodoEscrita
+     * Barra a execucao de qualquer acao listada em ACOES_SOMENTE_POST se a
+     * requisicao nao veio como POST -- ver o comentario da constante para
+     * o motivo. Roda ANTES do verificarCsrf() nao ser suficiente sozinho:
+     * aqui a checagem e pelo VERBO HTTP, nao pelo token.
+     *
+     * @return void
+     */
+    protected function verificarMetodoEscrita()
+    {
+        $nomeControllerCurto = substr(strrchr(static::class, '\\'), 1);
+        $acoesRestritas = self::ACOES_SOMENTE_POST[$nomeControllerCurto] ?? [];
+
+        if ($acoesRestritas === []) {
+            return;
+        }
+
+        $metodo = $this->request->getMetodo();
+
+        if (in_array($metodo, $acoesRestritas, true) && $this->request->getHttpMethod() !== 'POST') {
+            http_response_code(405);
+            Session::set('msgError', 'Essa acao so pode ser feita atraves do formulario correspondente.');
+            header('Location: ' . BASEURL . 'Home');
+            exit;
+        }
     }
 
     /**
