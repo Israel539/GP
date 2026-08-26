@@ -30,6 +30,10 @@ class Home extends BaseController
         $totalPlanosCompra    = $planoCompraModel->contarPorUsuario($usuarioId);
         $resumoMes            = $transacaoModel->resumoMesPorUsuario($usuarioId);
 
+        // "Saldo" no dashboard e a soma de TODAS as contas do usuario --
+        // desde a migracao 014, "Dinheiro Fisico" e so uma conta comum que
+        // a pessoa escolheu (nao existe mais um valor separado pra somar
+        // aqui: a conta escolhida ja vem incluida em $contas normalmente).
         $saldoTotal = array_sum(array_column($contas, 'saldo_atual'));
 
         $hora = (int) date('G');

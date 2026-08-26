@@ -78,7 +78,24 @@ class Recorrencia extends BaseController
         $dados = $this->request->getPost();
         $usuario = $this->usuarioLogado();
 
-        $contaId = (int) ($dados['conta_id'] ?? 0);
+        // RN10 (Dinheiro Fisico): recorrencia em dinheiro sempre usa a
+        // conta que o usuario escolheu pra representar isso (migracao 014)
+        // -- mesma regra de Transacao::lancar(). Sobrescreve o conta_id
+        // vindo do formulario ANTES de checar dono, pra nem precisar que
+        // o usuario escolha uma conta quando a modalidade for dinheiro.
+        if (($dados['modalidade'] ?? '') === 'dinheiro') {
+            $contaDinheiro = $this->contaModel->buscarContaDinheiro((int) $usuario['id']);
+
+            if ($contaDinheiro === null) {
+                Session::set('msgError', 'Voce ainda nao escolheu uma conta para representar seu Dinheiro Fisico. Configure isso na tela de Contas antes de criar uma recorrencia em dinheiro.');
+                return header('Location: /Recorrencia/form');
+            }
+
+            $contaId = (int) $contaDinheiro['id'];
+        } else {
+            $contaId = (int) ($dados['conta_id'] ?? 0);
+        }
+        $dados['conta_id'] = $contaId;
 
         if (!$this->contaModel->usuarioEhDono($contaId, (int) $usuario['id'])) {
             Session::set('msgError', 'Conta invalida.');
@@ -115,6 +132,29 @@ class Recorrencia extends BaseController
 
         if (!$this->model->pertenceAoUsuario($id, (int) $usuario['id'])) {
             return $this->negarAcesso();
+        }
+
+        // RN de seguranca: 'conta_id' nunca pode vir do POST bruto aqui.
+        // A tela de edicao nem mostra esse campo (conta e fixa desde a
+        // criacao), entao o unico jeito legitimo de conta_id mudar e a
+        // excecao controlada abaixo (RN10). Sem isso, alguem editando a
+        // PROPRIA recorrencia podia forjar um conta_id de OUTRO usuario na
+        // requisicao e reatribuir a recorrencia pra conta de outra pessoa
+        // -- as transacoes futuras geradas por ela cairiam la.
+        unset($dados['conta_id']);
+
+        // RN10 (Dinheiro Fisico): mesma regra de salvar() -- se a modalidade
+        // enviada for 'dinheiro', a recorrencia muda pra conta escolhida
+        // pelo usuario (migracao 014), nao importa qual conta ela tinha antes.
+        if (($dados['modalidade'] ?? '') === 'dinheiro') {
+            $contaDinheiro = $this->contaModel->buscarContaDinheiro((int) $usuario['id']);
+
+            if ($contaDinheiro === null) {
+                Session::set('msgError', 'Voce ainda nao escolheu uma conta para representar seu Dinheiro Fisico. Configure isso na tela de Contas antes de mudar para essa modalidade.');
+                return header('Location: /Recorrencia');
+            }
+
+            $dados['conta_id'] = (int) $contaDinheiro['id'];
         }
 
         $dados['valor'] = str_replace(',', '.', $dados['valor'] ?? '0');

@@ -8,6 +8,22 @@ class ContaModel extends BaseModel
         'nome' => ['rules' => 'required|min:2|max:100', 'label' => 'Nome da conta'],
     ];
 
+    // Fragmento de SQL reutilizado em toda consulta que precisa do saldo
+    // calculado de uma conta -- ANTES isso vinha de uma VIEW (vw_saldo_contas),
+    // trocamos por essa sub-expressao comum porque alguns provedores de
+    // hospedagem compartilhada nao liberam CREATE VIEW em contas gratuitas
+    // (ver migracao 013). A regra em si nao mudou (RN08/RN09): soma receitas,
+    // subtrai despesas, so movimentacoes confirmadas, ignora modalidade
+    // credito (que e responsabilidade da fatura, nao da conta) e ignora
+    // transacoes na lixeira (excluido_em).
+    private const SQL_SALDO_ATUAL = "c.saldo_inicial + COALESCE(SUM(
+                CASE
+                    WHEN t.tipo = 'receita' AND t.status = 'confirmada' AND t.modalidade != 'credito' THEN t.valor
+                    WHEN t.tipo = 'despesa' AND t.status = 'confirmada' AND t.modalidade != 'credito' THEN -t.valor
+                    ELSE 0
+                END
+            ), 0)";
+
     /**
      * criar
      *
@@ -44,22 +60,72 @@ class ContaModel extends BaseModel
 
     /**
      * listarPorUsuario
-     * RN08: cada linha ja vem com o saldo atual calculado (vw_saldo_contas),
-     * nunca de uma coluna armazenada. NAO existe mais bypass de admin aqui --
-     * ver Admin::suporteAcessar() para o fluxo auditado de acesso pontual.
+     * RN08: cada linha ja vem com o saldo atual calculado, nunca de uma
+     * coluna armazenada. NAO existe mais bypass de admin aqui -- ver
+     * Admin::suporteAcessar() para o fluxo auditado de acesso pontual.
      *
      * @param int $usuarioId
      * @return array
      */
     public function listarPorUsuario(int $usuarioId): array
     {
-        $sql = "SELECT c.*, v.saldo_atual
+        $sql = "SELECT c.*, " . self::SQL_SALDO_ATUAL . " AS saldo_atual
                 FROM contas c
-                INNER JOIN vw_saldo_contas v ON v.conta_id = c.id
+                LEFT JOIN transacoes t ON t.conta_id = c.id AND t.excluido_em IS NULL
                 WHERE c.usuario_id = :usuario_id
+                GROUP BY c.id
                 ORDER BY c.nome ASC";
 
         return $this->connDb->select($sql, ['usuario_id' => $usuarioId]);
+    }
+
+    /**
+     * buscarContaDinheiro
+     * Retorna (com saldo ja calculado) a conta que o usuario escolheu pra
+     * representar o "Dinheiro Fisico" (RN10 -- ver migracao 014), ou null
+     * se ele ainda nao escolheu nenhuma. Toda transacao/recorrencia com
+     * modalidade='dinheiro' usa o conta_id dessa conta, nao importa em
+     * qual outra conta a pessoa estava quando lancou.
+     *
+     * @param int $usuarioId
+     * @return array|null
+     */
+    public function buscarContaDinheiro(int $usuarioId): ?array
+    {
+        $sql = "SELECT c.*, " . self::SQL_SALDO_ATUAL . " AS saldo_atual
+                FROM contas c
+                LEFT JOIN transacoes t ON t.conta_id = c.id AND t.excluido_em IS NULL
+                WHERE c.usuario_id = :usuario_id AND c.eh_conta_dinheiro = 1
+                GROUP BY c.id
+                LIMIT 1";
+
+        $linha = $this->connDb->select($sql, ['usuario_id' => $usuarioId], 'one');
+
+        return count($linha) > 0 ? $linha : null;
+    }
+
+    /**
+     * definirContaDinheiro
+     * Marca $contaId como a conta que recebe lancamentos em dinheiro do
+     * usuario, desmarcando qualquer outra que estivesse marcada antes --
+     * so pode haver UMA por usuario. O Controller ja confere
+     * usuarioEhDono($contaId, $usuarioId) antes de chamar isso.
+     *
+     * @param int $usuarioId
+     * @param int $contaId
+     * @return void
+     */
+    public function definirContaDinheiro(int $usuarioId, int $contaId): void
+    {
+        $this->connDb->update(
+            "UPDATE contas SET eh_conta_dinheiro = 0 WHERE usuario_id = :usuario_id",
+            ['usuario_id' => $usuarioId]
+        );
+
+        $this->connDb->update(
+            "UPDATE contas SET eh_conta_dinheiro = 1 WHERE id = :id AND usuario_id = :usuario_id",
+            ['id' => $contaId, 'usuario_id' => $usuarioId]
+        );
     }
 
     /**
@@ -78,7 +144,7 @@ class ContaModel extends BaseModel
 
     /**
      * saldoAtual
-     * RN08: saldo em tempo real, via view (saldo_inicial + receitas - despesas
+     * RN08: saldo em tempo real (saldo_inicial + receitas - despesas
      * confirmadas, exceto modalidade credito -- ver RN09).
      *
      * @param int $contaId
@@ -86,7 +152,12 @@ class ContaModel extends BaseModel
      */
     public function saldoAtual(int $contaId): float
     {
-        $sql = "SELECT saldo_atual FROM vw_saldo_contas WHERE conta_id = :conta_id LIMIT 1";
+        $sql = "SELECT " . self::SQL_SALDO_ATUAL . " AS saldo_atual
+                FROM contas c
+                LEFT JOIN transacoes t ON t.conta_id = c.id AND t.excluido_em IS NULL
+                WHERE c.id = :conta_id
+                GROUP BY c.id";
+
         $linha = $this->connDb->select($sql, ['conta_id' => $contaId], 'one');
 
         return isset($linha['saldo_atual']) ? (float) $linha['saldo_atual'] : 0.0;

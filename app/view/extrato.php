@@ -10,7 +10,7 @@
  * @var array $periodo
  * @var array $totaisFiltro
  * @var array $lixeira
- * @var array $usuario
+ * @var array|null $contaDinheiro
  */
 include __DIR__ . '/comuns/header.php'; ?>
 
@@ -28,73 +28,35 @@ include __DIR__ . '/comuns/header.php'; ?>
         <div class="col-md-6">
             <h2><?= htmlspecialchars($conta['nome']) ?></h2>
             <span class="text-muted"><?= htmlspecialchars(ucfirst($conta['tipo'])) ?></span>
+            <?php if (!empty($contaDinheiro) && (int) $contaDinheiro['id'] === (int) $conta['id']): ?>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">Dinheiro Físico</span>
+            <?php endif; ?>
         </div>
         <div class="col-md-6 text-end">
-            <?php $saldoTotal = $saldoAtual + (float) ($usuario['saldo_dinheiro'] ?? 0); ?>
-            <div class="fs-3 <?= $saldoTotal < 0 ? 'text-danger' : 'text-success' ?>">
-                R$ <?= number_format($saldoTotal, 2, ',', '.') ?>
+            <div class="fs-3 <?= $saldoAtual < 0 ? 'text-danger' : 'text-success' ?>">
+                R$ <?= number_format($saldoAtual, 2, ',', '.') ?>
             </div>
-            <span class="small text-muted">Saldo total (conta + dinheiro físico)</span>
+            <span class="small text-muted">Saldo desta conta</span>
         </div>
     </div>
 
-    <!-- Widget opcional: dinheiro fisico + saldo desta conta (RN08) + total.
-         Desligado por padrao -- so aparece se o usuario ativar a checkbox
-         (preferencia salva por usuario, vale pra todas as contas). -->
-    <div class="card mb-3">
-        <div class="card-body py-2">
-            <div class="d-flex justify-content-between align-items-center <?= !empty($usuario['exibir_saldo_dinheiro']) ? 'mb-3' : '' ?>">
-                <strong class="small">Resumo financeiro</strong>
-                <form action="/Conta/alternarExibirSaldoDinheiro" method="POST" class="d-flex align-items-center gap-2 mb-0">
-                    <?= \App\Library\Csrf::getHiddenField() ?>
-                    <input type="hidden" name="voltar_para" value="/Transacao/extrato/<?= (int) $conta['id'] ?>">
-                    <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" role="switch" id="chkExibirDinheiro"
-                            name="exibir" value="1" onchange="this.form.submit()"
-                            <?= !empty($usuario['exibir_saldo_dinheiro']) ? 'checked' : '' ?>>
-                        <label class="form-check-label small" for="chkExibirDinheiro">Mostrar dinheiro físico</label>
-                    </div>
-                </form>
-            </div>
-
-            <?php if (!empty($usuario['exibir_saldo_dinheiro'])): ?>
-                <div class="row text-center g-2">
-                    <div class="col-md-4 border-end">
-                        <div class="small text-muted mb-1">Dinheiro físico</div>
-                        <form action="/Conta/atualizarSaldoDinheiro" method="POST"
-                            class="d-flex justify-content-center align-items-center gap-1">
-                            <?= \App\Library\Csrf::getHiddenField() ?>
-                            <input type="hidden" name="voltar_para" value="/Transacao/extrato/<?= (int) $conta['id'] ?>">
-                            <span class="small">R$</span>
-                            <input type="text" name="saldo_dinheiro" class="form-control form-control-sm text-center"
-                                style="max-width: 110px;"
-                                value="<?= number_format((float) $usuario['saldo_dinheiro'], 2, ',', '') ?>">
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Salvar</button>
-                        </form>
-                    </div>
-                    <div class="col-md-4 border-end">
-                        <div class="small text-muted mb-1">Saldo desta conta</div>
-                        <form action="/Conta/atualizarSaldoConta" method="POST"
-                            class="d-flex justify-content-center align-items-center gap-1">
-                            <?= \App\Library\Csrf::getHiddenField() ?>
-                            <input type="hidden" name="conta_id" value="<?= (int) $conta['id'] ?>">
-                            <input type="hidden" name="voltar_para" value="/Transacao/extrato/<?= (int) $conta['id'] ?>">
-                            <span class="small">R$</span>
-                            <input type="text" name="saldo_conta" class="form-control form-control-sm text-center"
-                                style="max-width: 110px;"
-                                value="<?= number_format($saldoAtual, 2, ',', '') ?>">
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Salvar</button>
-                        </form>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="small text-muted mb-1">Total (dinheiro + esta conta)</div>
-                        <?php $total = $saldoAtual + (float) $usuario['saldo_dinheiro']; ?>
-                        <div class="fs-6 fw-bold <?= $total < 0 ? 'text-danger' : 'text-success' ?>">
-                            R$ <?= number_format($total, 2, ',', '.') ?>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
+    <!-- Ajuste rapido de saldo (RN08): muda o saldo_inicial pra bater com
+         o valor informado, sem tocar nas transacoes ja lancadas. Fica
+         escondido por padrao pra nao poluir a tela toda vez. -->
+    <div class="mb-3">
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#ajusteSaldoConta">
+            Ajustar saldo desta conta
+        </button>
+        <div class="collapse mt-2" id="ajusteSaldoConta">
+            <form action="/Conta/atualizarSaldoConta" method="POST" class="d-flex align-items-center gap-2">
+                <?= \App\Library\Csrf::getHiddenField() ?>
+                <input type="hidden" name="conta_id" value="<?= (int) $conta['id'] ?>">
+                <input type="hidden" name="voltar_para" value="/Transacao/extrato/<?= (int) $conta['id'] ?>">
+                <span class="small">R$</span>
+                <input type="text" name="saldo_conta" class="form-control form-control-sm" style="max-width: 130px;"
+                    value="<?= number_format($saldoAtual, 2, ',', '') ?>">
+                <button type="submit" class="btn btn-sm btn-outline-primary">Salvar</button>
+            </form>
         </div>
     </div>
 
@@ -141,6 +103,15 @@ include __DIR__ . '/comuns/header.php'; ?>
                                 <option value="dinheiro">Dinheiro</option>
                                 <option value="outro">Outro</option>
                             </select>
+                            <?php if ($contaDinheiro === null): ?>
+                                <div class="form-text text-danger" id="dicaModalidadeDinheiro" style="display: none;">
+                                    Voce ainda nao escolheu uma conta para representar seu Dinheiro Fisico -- configure isso na tela de Contas antes.
+                                </div>
+                            <?php elseif ((int) $contaDinheiro['id'] !== (int) $conta['id']): ?>
+                                <div class="form-text" id="dicaModalidadeDinheiro" style="display: none;">
+                                    Isso vai descontar/somar de "<?= htmlspecialchars($contaDinheiro['nome']) ?>" (sua conta configurada como Dinheiro Fisico), nao desta conta -- vai aparecer no extrato dela, nao aqui.
+                                </div>
+                            <?php endif; ?>
                         </div>
 
                         <div class="mb-2" id="campoCartao" style="display:none;">
@@ -501,6 +472,14 @@ function alternarCampoCartao() {
     // nao suporta parcelamento.
     if (!ehCredito) {
         document.querySelector('select[name="parcelas"]').value = '1';
+    }
+
+    // RN10 (Dinheiro Fisico): o elemento pode nem existir (ex: esta conta
+    // JA e a configurada como Dinheiro Fisico, entao nao ha aviso de
+    // "vai pra outro lugar" pra mostrar).
+    var dica = document.getElementById('dicaModalidadeDinheiro');
+    if (dica) {
+        dica.style.display = (modalidade === 'dinheiro') ? 'block' : 'none';
     }
 }
 

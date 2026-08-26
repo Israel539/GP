@@ -28,16 +28,16 @@ class Conta extends BaseController
         $usuario = $this->usuarioLogado();
         $contas  = $this->model->listarPorUsuario((int) $usuario['id']);
 
-        // Widget opcional de dinheiro fisico + saldo em conta + total (ver
-        // migracao 012). So carrega o usuario completo aqui (a sessao so
-        // tem id/nome/email/nivel) porque e a unica tela que precisa desses
-        // 2 campos extras.
-        $usuarioCompleto = $this->model('Usuario')->buscarPorId((int) $usuario['id']);
+        // "Dinheiro Fisico" (RN10 -- ver migracao 014): qual conta (das que
+        // ja aparecem na lista acima) o usuario escolheu pra receber
+        // lancamentos com modalidade='dinheiro' automaticamente. Null se
+        // ele ainda nao escolheu nenhuma.
+        $contaDinheiro = $this->model->buscarContaDinheiro((int) $usuario['id']);
         $saldoContasTotal = array_sum(array_column($contas, 'saldo_atual'));
 
         return $this->view("contas", [
             'contas'            => $contas,
-            'usuario'           => $usuarioCompleto,
+            'contaDinheiro'     => $contaDinheiro,
             'saldoContasTotal'  => $saldoContasTotal,
         ]);
     }
@@ -156,24 +156,30 @@ class Conta extends BaseController
     }
 
     /**
-     * atualizarSaldoDinheiro
-     * URL: /Conta/atualizarSaldoDinheiro (POST)
-     * Salva o valor de dinheiro fisico do usuario (editado a mao -- ver
-     * migracao 012, nao viola RN08 porque nao e saldo de conta).
+     * definirContaDinheiro
+     * URL: /Conta/definirContaDinheiro (POST)
+     * Marca qual conta (das que o usuario ja tem) passa a receber
+     * lancamentos com modalidade='dinheiro' automaticamente (RN10 -- ver
+     * migracao 014). So pode haver uma por usuario -- escolher uma nova
+     * substitui a anterior.
      *
      * @return void
      */
-    public function atualizarSaldoDinheiro()
+    public function definirContaDinheiro()
     {
         $usuario = $this->usuarioLogado();
         $post    = $this->request->getPost();
+        $contaId = (int) ($post['conta_id'] ?? 0);
 
-        $valor = (float) str_replace(',', '.', $post['saldo_dinheiro'] ?? '0');
+        if (!$this->model->usuarioEhDono($contaId, (int) $usuario['id'])) {
+            Session::set('msgError', 'Conta nao encontrada.');
+            return header('Location: /Conta');
+        }
 
-        $this->model('Usuario')->atualizarSaldoDinheiro((int) $usuario['id'], $valor);
+        $this->model->definirContaDinheiro((int) $usuario['id'], $contaId);
 
-        Session::set('msgSucesso', 'Dinheiro físico atualizado.');
-        return header('Location: ' . $this->destinoAposSalvarSaldo($post));
+        Session::set('msgSucesso', 'Conta para Dinheiro Físico atualizada.');
+        return header('Location: /Conta');
     }
 
     /**
@@ -181,7 +187,7 @@ class Conta extends BaseController
      * URL: /Conta/atualizarSaldoConta (POST)
      * Ajusta o saldo inicial para refletir o saldo atual informado pelo dono.
      * As transacoes existentes continuam preservadas e o saldo segue sendo
-     * calculado pela vw_saldo_contas (RN08).
+     * calculado a partir delas (RN08).
      *
      * @return void
      */
@@ -204,31 +210,12 @@ class Conta extends BaseController
     }
 
     /**
-     * alternarExibirSaldoDinheiro
-     * URL: /Conta/alternarExibirSaldoDinheiro (POST)
-     * Liga/desliga o widget de dinheiro fisico + total na tela de Contas.
-     *
-     * @return void
-     */
-    public function alternarExibirSaldoDinheiro()
-    {
-        $usuario = $this->usuarioLogado();
-        $post    = $this->request->getPost();
-
-        $exibir = !empty($post['exibir']);
-
-        $this->model('Usuario')->atualizarPreferenciaExibirSaldoDinheiro((int) $usuario['id'], $exibir);
-
-        return header('Location: ' . $this->destinoAposSalvarSaldo($post));
-    }
-
-    /**
      * destinoAposSalvarSaldo
-     * O widget de dinheiro fisico aparece tanto na listagem de contas
-     * (/Conta) quanto no extrato de cada conta -- 'voltar_para' (campo
-     * hidden no form) diz pra onde voltar depois de salvar, senao cai no
-     * padrao (/Conta). So aceita caminhos internos comecando com "/", pra
-     * ninguem usar isso como redirecionador aberto pra outro site.
+     * O ajuste de saldo aparece tanto na listagem de contas (/Conta) quanto
+     * no extrato de cada conta -- 'voltar_para' (campo hidden no form) diz
+     * pra onde voltar depois de salvar, senao cai no padrao (/Conta). So
+     * aceita caminhos internos comecando com "/", pra ninguem usar isso
+     * como redirecionador aberto pra outro site.
      *
      * @param array $post
      * @return string

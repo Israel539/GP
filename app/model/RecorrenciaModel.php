@@ -14,6 +14,12 @@ class RecorrenciaModel extends BaseModel
     private const CAMPOS_EDITAVEIS = [
         'descricao', 'valor', 'tipo', 'modalidade', 'categoria_id', 'cartao_id',
         'dia_mes', 'data_inicio', 'data_fim',
+        // conta_id soh eh setado pelo Controller quando a modalidade muda
+        // pra 'dinheiro' (RN10 -- ver Recorrencia::atualizar()), pra mover
+        // a recorrencia pra conta escolhida pelo usuario (migracao 014).
+        // Fora desse caso especifico o Controller nunca inclui essa chave
+        // em $dados.
+        'conta_id',
     ];
 
     /**

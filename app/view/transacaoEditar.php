@@ -5,6 +5,7 @@
  * @var array $categorias
  * @var array $tags
  * @var array|null $cartao
+ * @var array|null $contaDinheiro
  */
 include __DIR__ . '/comuns/header.php'; ?>
 
@@ -53,13 +54,24 @@ include __DIR__ . '/comuns/header.php'; ?>
 
                         <div class="mb-3">
                             <label class="form-label small">Modalidade</label>
-                            <select name="modalidade" id="modalidadeEditar" class="form-select form-select-sm" onchange="alternarCampoCartaoEditar()" <?= $transacao['modalidade'] === 'credito' ? 'disabled' : '' ?>>
+                            <select name="modalidade" id="modalidadeEditar" class="form-select form-select-sm" onchange="alternarCampoCartaoEditar()" <?= in_array($transacao['modalidade'], ['credito', 'dinheiro'], true) ? 'disabled' : '' ?>>
                                 <?php foreach (['pix' => 'Pix', 'boleto' => 'Boleto', 'debito' => 'Debito', 'credito' => 'Credito', 'dinheiro' => 'Dinheiro', 'outro' => 'Outro'] as $valor => $rotulo): ?>
                                     <option value="<?= $valor ?>" <?= ($transacao['modalidade'] ?? '') === $valor ? 'selected' : '' ?>><?= $rotulo ?></option>
                                 <?php endforeach; ?>
                             </select>
                             <?php if ($transacao['modalidade'] === 'credito'): ?>
                                 <div class="form-text">Modalidade de credito nao pode ser alterada aqui.</div>
+                            <?php elseif ($transacao['modalidade'] === 'dinheiro'): ?>
+                                <div class="form-text">Modalidade de dinheiro nao pode ser alterada aqui -- exclua e lance de novo se precisar trocar.</div>
+                            <?php endif; ?>
+                            <?php if ($contaDinheiro === null): ?>
+                                <div class="form-text text-danger" id="dicaModalidadeDinheiroEditar" style="display: none;">
+                                    Voce ainda nao escolheu uma conta para representar seu Dinheiro Fisico -- configure isso na tela de Contas antes.
+                                </div>
+                            <?php elseif ((int) $contaDinheiro['id'] !== (int) $conta['id']): ?>
+                                <div class="form-text" id="dicaModalidadeDinheiroEditar" style="display: none;">
+                                    Isso vai mover a transacao pra "<?= htmlspecialchars($contaDinheiro['nome']) ?>" (sua conta configurada como Dinheiro Fisico) -- ela deixa de aparecer no extrato desta conta.
+                                </div>
                             <?php endif; ?>
                         </div>
 
@@ -112,6 +124,13 @@ include __DIR__ . '/comuns/header.php'; ?>
 function alternarCampoCartaoEditar() {
     var modalidade = document.getElementById('modalidadeEditar').value;
     document.getElementById('campoCartaoEditar').style.display = (modalidade === 'credito') ? 'block' : 'none';
+
+    // O elemento pode nem existir (ex: a conta atual ja e a configurada
+    // como Dinheiro Fisico, entao nao ha aviso de "vai mover" pra mostrar).
+    var dica = document.getElementById('dicaModalidadeDinheiroEditar');
+    if (dica) {
+        dica.style.display = (modalidade === 'dinheiro') ? 'block' : 'none';
+    }
 }
 </script>
 

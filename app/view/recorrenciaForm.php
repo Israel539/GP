@@ -32,13 +32,16 @@ include __DIR__ . '/comuns/header.php'; ?>
                             </div>
 
                             <?php if (empty($recorrencia)): ?>
-                                <div class="mb-3">
+                                <div class="mb-3" id="campoContaRecorrencia">
                                     <label class="form-label">Conta</label>
-                                    <select name="conta_id" class="form-select" required>
+                                    <select name="conta_id" id="contaIdRecorrencia" class="form-select" required>
                                         <?php foreach ($contas as $conta): ?>
                                             <option value="<?= (int) $conta['id'] ?>"><?= htmlspecialchars($conta['nome']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
+                                    <div class="form-text" id="dicaContaDinheiro" style="display: none;">
+                                        Recorrencia em dinheiro nao precisa de conta -- ela usa automaticamente o seu "Dinheiro Fisico".
+                                    </div>
                                 </div>
                             <?php endif; ?>
 
@@ -131,7 +134,25 @@ include __DIR__ . '/comuns/header.php'; ?>
 function alternarCampoCartaoRecorrencia() {
     var modalidade = document.getElementById('modalidadeRecorrencia').value;
     document.getElementById('campoCartaoRecorrencia').style.display = (modalidade === 'credito') ? 'block' : 'none';
+
+    // RN10 (Dinheiro Fisico): esse campo so existe na tela de CRIACAO (na
+    // edicao a conta ja fica fixa e nem aparece) -- por isso o "if" de
+    // seguranca, pra nao quebrar quando a funcao roda na tela de editar.
+    var campoConta = document.getElementById('campoContaRecorrencia');
+    if (campoConta) {
+        var selectConta = document.getElementById('contaIdRecorrencia');
+        var dicaDinheiro = document.getElementById('dicaContaDinheiro');
+        var ehDinheiro = (modalidade === 'dinheiro');
+
+        selectConta.style.display = ehDinheiro ? 'none' : 'block';
+        selectConta.required = !ehDinheiro;
+        dicaDinheiro.style.display = ehDinheiro ? 'block' : 'none';
+    }
 }
+
+// Garante o estado certo se a pagina carregar com "Dinheiro" ja selecionado
+// (ex: usuario voltou pra essa tela com o navegador).
+document.addEventListener('DOMContentLoaded', alternarCampoCartaoRecorrencia);
 </script>
 
 <?php include __DIR__ . '/comuns/footer.php'; ?>

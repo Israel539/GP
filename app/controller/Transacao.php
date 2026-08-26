@@ -67,10 +67,10 @@ class Transacao extends BaseController
             $totaisFiltro[$t['tipo'] === 'receita' ? 'receitas' : 'despesas'] += (float) $t['valor'];
         }
 
-        // Widget opcional de dinheiro fisico + total (ver migracao 012) --
-        // a sessao so tem id/nome/email/nivel, entao busca o usuario
-        // completo so aqui, que e onde os campos extras sao usados.
-        $usuarioCompleto = $this->model('Usuario')->buscarPorId((int) $usuario['id']);
+        // Nome da conta que representa o "Dinheiro Fisico" (RN10 -- ver
+        // migracao 014), so pra avisar na tela quando ela for DIFERENTE da
+        // conta que esta sendo visualizada agora (ver JS alternarCampoCartao).
+        $contaDinheiro = $this->contaModel->buscarContaDinheiro((int) $usuario['id']);
 
         // Tags ja vinculadas a cada transacao, para exibir/editar na linha.
         foreach ($transacoes as &$t) {
@@ -88,7 +88,7 @@ class Transacao extends BaseController
             'filtros'     => $filtros,
             'periodo'     => $periodo,
             'lixeira'     => $lixeira,
-            'usuario'     => $usuarioCompleto,
+            'contaDinheiro' => $contaDinheiro,
         ]);
     }
 
@@ -405,6 +405,26 @@ class Transacao extends BaseController
             'data_competencia'  => $post['data_competencia'] ?? $post['data_fato_gerador'],
         ];
 
+        // RN10 (Dinheiro Fisico): uma transacao em dinheiro sempre vai pra
+        // conta que o usuario escolheu pra representar isso (ver migracao
+        // 014, ContaModel::buscarContaDinheiro()) -- nao importa em qual
+        // conta a tela de extrato estava aberta quando o lancamento foi
+        // feito. $contaId (da URL) continua sendo usado pra checagem de
+        // permissao e pra onde voltar em caso de erro -- so o DESTINO do
+        // dinheiro muda.
+        $contaDestinoId = $contaId;
+        if ($dadosTransacao['modalidade'] === 'dinheiro') {
+            $contaDinheiro = $this->contaModel->buscarContaDinheiro((int) $usuario['id']);
+
+            if ($contaDinheiro === null) {
+                Session::set('msgError', 'Voce ainda nao escolheu uma conta para representar seu Dinheiro Fisico. Configure isso na tela de Contas antes de lancar em dinheiro.');
+                return header("Location: /Transacao/extrato/{$contaId}");
+            }
+
+            $contaDestinoId = (int) $contaDinheiro['id'];
+            $dadosTransacao['conta_id'] = $contaDestinoId;
+        }
+
         try {
             if ($numParcelas > 1) {
                 // So faz sentido parcelar no credito -- validate() la na
@@ -430,9 +450,13 @@ class Transacao extends BaseController
             $this->vincularTagsDoTexto($idGerado, (int) $usuario['id'], $post['tags'] ?? '');
         }
 
-        $mensagem = $numParcelas > 1 ? "Compra lancada em {$numParcelas}x." : 'Transacao lancada.';
+        if ($dadosTransacao['modalidade'] === 'dinheiro') {
+            $mensagem = 'Transacao lancada no Dinheiro Fisico.';
+        } else {
+            $mensagem = $numParcelas > 1 ? "Compra lancada em {$numParcelas}x." : 'Transacao lancada.';
+        }
         Session::set('msgSucesso', $mensagem);
-        return header("Location: /Transacao/extrato/{$contaId}");
+        return header("Location: /Transacao/extrato/{$contaDestinoId}");
     }
 
     /**
@@ -533,12 +557,17 @@ class Transacao extends BaseController
             $cartao = $this->cartaoModel->buscarPorId((int) $transacao['cartao_id']);
         }
 
+        // Pra montar a dica certa na tela quando a modalidade mudar pra
+        // 'dinheiro' (RN10) -- ver comentario na view.
+        $contaDinheiro = $this->contaModel->buscarContaDinheiro((int) $conta['usuario_id']);
+
         return $this->view('transacaoEditar', [
-            'conta'       => $conta,
-            'transacao'   => $transacao,
-            'categorias'  => $categorias,
-            'tags'        => $tags,
-            'cartao'      => $cartao,
+            'conta'         => $conta,
+            'transacao'     => $transacao,
+            'categorias'    => $categorias,
+            'tags'          => $tags,
+            'cartao'        => $cartao,
+            'contaDinheiro' => $contaDinheiro,
         ]);
     }
 
@@ -597,8 +626,32 @@ class Transacao extends BaseController
 
         if ($transacao['modalidade'] === 'credito') {
             $dados['modalidade'] = 'credito';
+        } elseif ($transacao['modalidade'] === 'dinheiro') {
+            // Mesma trava que 'credito' ja tinha, e pelo mesmo motivo: essa
+            // tela nao tem um campo pra escolher OUTRA conta bancaria, entao
+            // nao tem como saber pra onde mover o dinheiro se a modalidade
+            // mudasse pra algo que nao seja dinheiro. Trocar a modalidade de
+            // uma transacao em dinheiro exige excluir e lancar de novo.
+            $dados['modalidade'] = 'dinheiro';
         } else {
             $dados['modalidade'] = $post['modalidade'] ?? $transacao['modalidade'];
+
+            // RN10 (Dinheiro Fisico): se a NOVA modalidade escolhida for
+            // 'dinheiro', a transacao muda pra conta que o usuario escolheu
+            // pra representar isso (migracao 014) -- unica troca de
+            // "container" permitida aqui, porque essa conta e sempre
+            // resolvida automaticamente, nunca depende de escolher outra
+            // conta bancaria na tela.
+            if ($dados['modalidade'] === 'dinheiro') {
+                $contaDinheiro = $this->contaModel->buscarContaDinheiro((int) $usuario['id']);
+
+                if ($contaDinheiro === null) {
+                    Session::set('msgError', 'Voce ainda nao escolheu uma conta para representar seu Dinheiro Fisico. Configure isso na tela de Contas antes de mudar para essa modalidade.');
+                    return header("Location: /Transacao/extrato/{$contaId}");
+                }
+
+                $dados['conta_id'] = (int) $contaDinheiro['id'];
+            }
         }
 
         if (!$this->model->validate($dados)) {
@@ -618,8 +671,13 @@ class Transacao extends BaseController
         }
         $this->vincularTagsDoTexto($transacaoId, (int) $usuario['id'], $post['tags'] ?? '');
 
+        // Se a transacao mudou de conta (foi pra carteira agora), o usuario
+        // precisa cair na tela de onde ela EFETIVAMENTE esta -- senao ela
+        // "some" da tela da conta bancaria original, que e de onde ele
+        // veio, e parece um bug.
+        $contaIdDestino = $dados['conta_id'] ?? $contaId;
         Session::set('msgSucesso', 'Transacao atualizada.');
-        return header("Location: /Transacao/extrato/{$contaId}");
+        return header("Location: /Transacao/extrato/{$contaIdDestino}");
     }
 
     /**

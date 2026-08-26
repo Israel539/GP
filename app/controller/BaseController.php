@@ -46,7 +46,7 @@ class BaseController
         'Cartao'                => ['salvar', 'atualizar', 'pagarFatura', 'deletar'],
         'Categoria'             => ['salvar', 'excluir'],
         'CompromissoRecorrente' => ['salvar', 'atualizar', 'excluir', 'gerarAgora'],
-        'Conta'                 => ['salvar', 'atualizar', 'excluir', 'atualizarSaldoDinheiro', 'atualizarSaldoConta', 'alternarExibirSaldoDinheiro'],
+        'Conta'                 => ['salvar', 'atualizar', 'excluir', 'atualizarSaldoConta', 'definirContaDinheiro'],
         'Contato'               => ['enviar', 'limparHistorico', 'restaurarHistorico'],
         'Login'                 => ['login', 'enviarLinkReset', 'salvarNovaSenha'],
         'Orcamento'             => ['salvar', 'excluir'],
