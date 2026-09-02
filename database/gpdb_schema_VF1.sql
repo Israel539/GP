@@ -15,8 +15,9 @@
 -- Cada tabela referencia, em comentário, a(s) Regra(s) de Negócio (RN) do
 -- documento de especificação que ela ajuda a sustentar.
 --
--- Este arquivo já reflete o estado final do banco (schema completo).
--- Uma instalação nova roda só este arquivo.
+-- Este arquivo já reflete o estado final do banco (schema completo,
+-- migrações 001 a 014 já incorporadas). Uma instalação nova roda só este
+-- arquivo -- não precisa rodar nada de database/migrations/ depois.
 -- ============================================================================
 
 CREATE DATABASE IF NOT EXISTS gpdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -42,6 +43,9 @@ CREATE TABLE IF NOT EXISTS usuarios (
     reset_token_expira_em DATETIME DEFAULT NULL,
     tentativas_login TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Zera a cada login bem-sucedido',
     bloqueado_ate DATETIME DEFAULT NULL COMMENT 'Rate limiting: login recusado enquanto NOW() < bloqueado_ate',
+    agenda_limpeza_automatica TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = exclui automaticamente (via cron) compromissos concluidos ha mais de 30 dias',
+    saldo_dinheiro DECIMAL(14,2) NOT NULL DEFAULT 0 COMMENT 'OBSOLETO desde a migracao 014 -- "Dinheiro Fisico" agora e uma conta comum (ver contas.eh_conta_dinheiro). Coluna mantida sem uso, so por seguranca.',
+    exibir_saldo_dinheiro TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'OBSOLETO desde a migracao 014, mesmo motivo da coluna acima.',
     criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_usuarios_email (email)
@@ -72,6 +76,7 @@ CREATE TABLE IF NOT EXISTS compromissos (
     notificar_email TINYINT(1) NOT NULL DEFAULT 0,
     notificado_whatsapp_em DATETIME DEFAULT NULL COMMENT 'RN03: flag de envio p/ evitar spam',
     notificado_email_em DATETIME DEFAULT NULL COMMENT 'RN03: flag de envio p/ evitar spam',
+    recorrencia_id INT UNSIGNED DEFAULT NULL COMMENT 'Preenchido quando o compromisso foi gerado automaticamente por uma recorrencia (compromissos_recorrentes, abaixo)',
     criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_compromissos_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -80,6 +85,37 @@ CREATE TABLE IF NOT EXISTS compromissos (
     -- todo hosting compartilhado garante isso — mais seguro validar em PHP.
     INDEX idx_compromissos_usuario_data (usuario_id, data_inicio)
 ) ENGINE=InnoDB;
+
+-- Molde de compromisso recorrente (ex: "reunião toda segunda às 9h") -- um
+-- cron confere diariamente quais precisam gerar um compromisso de verdade
+-- na tabela acima (vinculado de volta via compromissos.recorrencia_id).
+CREATE TABLE IF NOT EXISTS compromissos_recorrentes (
+    id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    usuario_id          INT UNSIGNED NOT NULL,
+    titulo              VARCHAR(150) NOT NULL,
+    descricao           TEXT         DEFAULT NULL,
+    tipo                ENUM('reuniao_presencial','tarefa_pessoal','lembrete','outro') NOT NULL DEFAULT 'outro',
+    local               VARCHAR(200) DEFAULT NULL,
+    dia_semana          TINYINT UNSIGNED NOT NULL COMMENT '0=domingo, 1=segunda, ..., 6=sabado',
+    hora_inicio         TIME         NOT NULL,
+    hora_fim            TIME         NOT NULL,
+    data_inicio         DATE         NOT NULL COMMENT 'A partir de quando a recorrencia vale',
+    data_fim            DATE         DEFAULT NULL COMMENT 'Opcional -- ex: fim do semestre',
+    notificar_email     TINYINT(1)   NOT NULL DEFAULT 1,
+    ativa               TINYINT(1)   NOT NULL DEFAULT 1,
+    ultima_data_gerada  DATE         DEFAULT NULL COMMENT 'Ate qual data ja foram criados compromissos de verdade',
+    criado_em           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_compromisso_recorrente_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    INDEX idx_compromisso_recorrente_usuario (usuario_id)
+) ENGINE=InnoDB;
+
+-- FK de compromissos.recorrencia_id só entra AQUI, depois de
+-- compromissos_recorrentes já existir (MySQL não aceita referenciar uma
+-- tabela que ainda não foi criada dentro do próprio CREATE TABLE).
+ALTER TABLE compromissos
+    ADD CONSTRAINT fk_compromissos_recorrencia
+    FOREIGN KEY (recorrencia_id) REFERENCES compromissos_recorrentes(id) ON DELETE SET NULL;
 
 -- ============================================================================
 -- MÓDULO 2: GESTÃO DE PROJETOS (com colaboração + chat)
@@ -210,6 +246,7 @@ CREATE TABLE IF NOT EXISTS contatos (
     criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     respondido_em DATETIME DEFAULT NULL,
     excluido_em DATETIME DEFAULT NULL,
+    excluido_por_admin TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Distingue exclusao pelo admin de exclusao pelo proprio usuario',
     CONSTRAINT fk_contato_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL,
     CONSTRAINT fk_contato_admin FOREIGN KEY (respondido_por) REFERENCES usuarios(id) ON DELETE SET NULL,
     INDEX idx_contatos_status (status),
@@ -250,6 +287,7 @@ CREATE TABLE IF NOT EXISTS contas (
     usuario_id INT UNSIGNED NOT NULL,
     nome VARCHAR(100) NOT NULL COMMENT 'Ex: "Nubank", "Carteira", "Inter"',
     tipo ENUM('corrente','poupanca','carteira','investimento') NOT NULL DEFAULT 'corrente',
+    eh_conta_dinheiro TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Marca qual conta do usuario recebe transacoes com modalidade=dinheiro automaticamente (RN10). So uma por usuario -- garantido pela aplicacao (ContaModel::definirContaDinheiro), nao da pra fazer isso de forma portavel so com constraint de banco.',
     saldo_inicial DECIMAL(14,2) NOT NULL DEFAULT 0.00,
     instituicao VARCHAR(100) DEFAULT NULL,
     pluggy_account_id VARCHAR(100) DEFAULT NULL COMMENT 'ID da conta na API Pluggy, p/ sincronização (RN10)',
@@ -394,11 +432,15 @@ CREATE TABLE IF NOT EXISTS transacoes (
     data_competencia DATE NOT NULL COMMENT 'Data contábil de referência (pode ser igual à anterior)',
     status ENUM('confirmada','pendente') NOT NULL DEFAULT 'confirmada',
     -- RN08: saldo = SUM(receita confirmada) - SUM(despesa efetivada) -- calculado
-    -- em tempo real via query/VIEW, não fica armazenado numa coluna "saldo".
+    -- em tempo real via query (ver "SALDO DE CONTAS" mais abaixo), não fica
+    -- armazenado numa coluna "saldo".
     excluido_em DATETIME DEFAULT NULL COMMENT 'Soft-delete: lixeira com restauracao em ate 1 dia (script de cron faz a purga definitiva depois disso)',
     origem ENUM('manual','api_openfinance') NOT NULL DEFAULT 'manual',
     id_externo VARCHAR(150) DEFAULT NULL COMMENT 'ID retornado pela API Pluggy -- RN10',
     instituicao_externa VARCHAR(100) DEFAULT NULL,
+    parcela_atual TINYINT UNSIGNED DEFAULT NULL COMMENT 'Ex: 2 (a 2a parcela de um total de parcela_total) -- NULL quando a transacao nao e parcelada',
+    parcela_total TINYINT UNSIGNED DEFAULT NULL COMMENT 'Quantidade total de parcelas do parcelamento -- NULL quando a transacao nao e parcelada',
+    grupo_parcela_id CHAR(36) DEFAULT NULL COMMENT 'Mesmo valor em todas as parcelas de uma mesma compra parcelada',
     criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     atualizado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_transacao_conta FOREIGN KEY (conta_id) REFERENCES contas(id) ON DELETE CASCADE,
@@ -409,7 +451,8 @@ CREATE TABLE IF NOT EXISTS transacoes (
     -- transações manuais, sem id_externo, não são afetadas por essa restrição)
     UNIQUE KEY uq_transacao_id_externo (id_externo),
     INDEX idx_transacao_conta_data (conta_id, data_fato_gerador),
-    INDEX idx_transacao_excluido_em (excluido_em)
+    INDEX idx_transacao_excluido_em (excluido_em),
+    INDEX idx_transacao_grupo_parcela (grupo_parcela_id)
 ) ENGINE=InnoDB;
 
 -- Pivô N:N transação <-> tag (RN07 libera edição livre de tags mesmo em
@@ -487,26 +530,20 @@ CREATE TABLE IF NOT EXISTS solicitacoes_suporte (
 ) ENGINE=InnoDB;
 
 -- ============================================================================
--- VIEW auxiliar para RN08 (saldo consolidado em tempo real por conta)
+-- SALDO DE CONTAS (RN08) -- calculado, sem VIEW
 -- ============================================================================
--- excluido_em IS NULL fica na condicao do JOIN (nao de um WHERE) para nao
--- perder contas sem nenhuma transacao (LEFT JOIN continua trazendo a conta
--- com saldo = saldo_inicial nesse caso) e para ignorar o que estiver na
--- lixeira (RN08: saldo reflete exatamente o que aparece no extrato).
-CREATE OR REPLACE VIEW vw_saldo_contas AS
-SELECT
-    c.id AS conta_id,
-    c.usuario_id,
-    c.nome,
-    c.saldo_inicial
-        + COALESCE(SUM(CASE
-            WHEN t.tipo = 'receita' AND t.status = 'confirmada' AND t.modalidade != 'credito' THEN t.valor
-            WHEN t.tipo = 'despesa' AND t.status = 'confirmada' AND t.modalidade != 'credito' THEN -t.valor
-            ELSE 0
-          END), 0) AS saldo_atual
-FROM contas c
-LEFT JOIN transacoes t ON t.conta_id = c.id AND t.excluido_em IS NULL
-GROUP BY c.id, c.usuario_id, c.nome, c.saldo_inicial;
+-- Ate a migracao 013 existia uma VIEW (vw_saldo_contas) fazendo esse calculo.
+-- Foi removida (migracao 014): alguns provedores de hospedagem compartilhada
+-- nao liberam CREATE VIEW pra contas gratuitas, e o calculo em si e simples
+-- o bastante pra virar so uma sub-expressao repetida direto nas queries do
+-- ContaModel (constante SQL_SALDO_ATUAL) em vez de depender de um objeto
+-- separado no banco. A regra e a mesma de sempre: saldo = saldo_inicial +
+-- receitas confirmadas - despesas confirmadas, ignorando modalidade credito
+-- (RN09, fica na fatura) e transacoes na lixeira (excluido_em).
+--
+-- Se este schema estiver sendo aplicado por cima de um banco que ainda tem
+-- a VIEW antiga (de uma instalacao anterior a migracao 014), rode:
+--   DROP VIEW IF EXISTS vw_saldo_contas;
 
 -- ============================================================================
 -- ORCAMENTO POR CATEGORIA
@@ -535,6 +572,7 @@ CREATE TABLE IF NOT EXISTS transacoes_recorrentes (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     conta_id INT UNSIGNED NOT NULL,
     categoria_id INT UNSIGNED DEFAULT NULL,
+    cartao_id INT UNSIGNED DEFAULT NULL COMMENT 'Obrigatorio quando modalidade = credito (RN09)',
     descricao VARCHAR(200) NOT NULL,
     valor DECIMAL(14,2) NOT NULL,
     tipo ENUM('receita','despesa') NOT NULL,
@@ -547,5 +585,6 @@ CREATE TABLE IF NOT EXISTS transacoes_recorrentes (
     criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_recorrencia_conta FOREIGN KEY (conta_id) REFERENCES contas(id) ON DELETE CASCADE,
     CONSTRAINT fk_recorrencia_categoria FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE SET NULL,
+    CONSTRAINT fk_recorrencia_cartao FOREIGN KEY (cartao_id) REFERENCES cartoes_credito(id) ON DELETE SET NULL,
     INDEX idx_recorrencia_conta (conta_id)
 ) ENGINE=InnoDB;

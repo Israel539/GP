@@ -11,7 +11,6 @@
 ALTER TABLE compromissos ADD COLUMN IF NOT EXISTS recorrencia_id INT UNSIGNED DEFAULT NULL
     COMMENT 'Preenchido quando o compromisso foi gerado automaticamente por uma recorrencia';
 
-Aqui já é relato interessante sobre a quantidade de valor quando a gente quer acessar a variável do que chamamos de, citando o dólar, a variável mexida.
 CREATE TABLE IF NOT EXISTS compromissos_recorrentes (
     id                  INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     usuario_id          INT UNSIGNED NOT NULL,
